@@ -12,6 +12,8 @@ function shapeUser(supabaseUser) {
     role:      meta.role ?? 'CLIENT',
     avatar:    meta.avatar_url ?? null,
     projectId: meta.projectId ?? null,
+    phone:     meta.phone    ?? null,
+    business:  meta.business ?? null,
   }
 }
 

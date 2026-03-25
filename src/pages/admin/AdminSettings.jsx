@@ -254,7 +254,23 @@ function ProfileTab({ user, isDark }) {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (ev) => setAvatar(ev.target.result)
+    reader.onload = (ev) => {
+      const img = new Image()
+      img.onload = () => {
+        const SIZE = 120
+        const canvas = document.createElement('canvas')
+        canvas.width  = SIZE
+        canvas.height = SIZE
+        const ctx = canvas.getContext('2d')
+        // Center-crop to square then scale down
+        const min = Math.min(img.width, img.height)
+        const sx  = (img.width  - min) / 2
+        const sy  = (img.height - min) / 2
+        ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE)
+        setAvatar(canvas.toDataURL('image/jpeg', 0.75))
+      }
+      img.src = ev.target.result
+    }
     reader.readAsDataURL(file)
   }
 
