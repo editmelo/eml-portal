@@ -73,14 +73,19 @@ export async function sendInviteEmail({ role, ownerName, email, companyName, mes
     ? "You're invited to join Edit Me Lo as a Designer"
     : "You're invited to the Edit Me Lo Client Portal"
 
+  const signupUrl = `${window.location.origin}/signup`
+
+  // Embed the link directly in the message body so Make doesn't need to template it
+  const fullMessage = `${message}\n\nCreate your account here:\n${signupUrl}`
+
   await _send({
     to_name:    ownerName,
     to_email:   email,
     subject,
     company:    companyName,
     role:       role === 'DESIGNER' ? 'Designer' : 'Client',
-    message,
-    portal_url: `${window.location.origin}/signup`,
+    message:    fullMessage,
+    portal_url: signupUrl,
   })
 
   toast.success(`Invite sent to ${email}`, {
