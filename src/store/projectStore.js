@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { MOCK_PROJECTS, MOCK_LEADS, MOCK_INVOICES, MOCK_PAYROLL } from '../lib/mockData'
+import { MOCK_INVOICES, MOCK_PAYROLL } from '../lib/mockData'
 import { PROJECT_STATUS } from '../lib/constants'
 
 /**
@@ -16,8 +16,8 @@ const useProjectStore = create(
   persist(
     (set, get) => ({
   // ── State ──────────────────────────────────────────────────────────────────
-  projects:    MOCK_PROJECTS,
-  leads:       MOCK_LEADS,
+  projects:    [],
+  leads:       [],
   invoices:    MOCK_INVOICES,
   payroll:     MOCK_PAYROLL,
   intakeForms:    {},   // { [projectId]: formData }
@@ -29,6 +29,7 @@ const useProjectStore = create(
   adminTodos:      [],   // [{ id, text, done, isPriority, createdAt }]             — admin personal to-do list
   projectBriefs:   {},   // { [projectId]: { ...generated brief data, createdAt } } — auto-generated from intake form
   folders:         [],   // [{ id, name, ownerId, ownerRole, ownerName, context, contextId, clientVisible, createdAt, files[] }]
+  financials:      { monthlyRevenue: 0, ytdRevenue: 0, goalMonthly: 5000, goalYearly: 60000 },
   isLoading:       false,
 
   // ── Project Actions ────────────────────────────────────────────────────────
@@ -233,6 +234,12 @@ const useProjectStore = create(
         l.id === leadId ? { ...l, converted: true, status: 'Converted' } : l
       ),
     }))
+  },
+
+  // ── Financials Actions ─────────────────────────────────────────────────────
+
+  setFinancials: (patch) => {
+    set((state) => ({ financials: { ...state.financials, ...patch } }))
   },
 
   // ── Invoice Actions ────────────────────────────────────────────────────────
@@ -444,11 +451,10 @@ const useProjectStore = create(
   }),
     {
       name: 'eml_project_store',
-      version: 1,
-      // When the schema changes, migrate to fresh mock data
+      version: 2,
       migrate: (_persistedState, _fromVersion) => ({
-        projects:         MOCK_PROJECTS,
-        leads:            MOCK_LEADS,
+        projects:         [],
+        leads:            [],
         invoices:         MOCK_INVOICES,
         payroll:          MOCK_PAYROLL,
         intakeForms:      {},
@@ -460,8 +466,8 @@ const useProjectStore = create(
         adminTodos:       [],
         projectBriefs:    {},
         folders:          [],
+        financials:       { monthlyRevenue: 0, ytdRevenue: 0, goalMonthly: 5000, goalYearly: 60000 },
       }),
-      // Persist all mutable state; selectors/actions are not serializable so exclude them
       partialize: (state) => ({
         projects:        state.projects,
         leads:           state.leads,
@@ -476,6 +482,7 @@ const useProjectStore = create(
         adminTodos:      state.adminTodos,
         projectBriefs:   state.projectBriefs,
         folders:         state.folders,
+        financials:      state.financials,
       }),
     }
   )

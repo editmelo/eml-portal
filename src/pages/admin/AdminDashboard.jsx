@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../../components/layout/AdminLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import { DarkCard } from '../../components/ui/Card'
@@ -7,59 +9,132 @@ import useAuthStore, { selectUser } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
 import useThemeStore from '../../store/themeStore'
 import useQuoteStore from '../../store/quoteStore'
-import { MOCK_FINANCIALS } from '../../lib/mockData'
 import { formatCurrency, formatDate } from '../../lib/utils'
-import { TrendingUp, DollarSign, FolderKanban, Users } from 'lucide-react'
+import { TrendingUp, DollarSign, FolderKanban, Users, Pencil, Plus, Check, X } from 'lucide-react'
 
+// ── Inline edit modal for revenue cards ──────────────────────────────────────
+function RevenueEditModal({ label, fields, values, onSave, onClose }) {
+  const [draft, setDraft] = useState({ ...values })
+
+  const handleSave = () => {
+    const parsed = {}
+    for (const f of fields) {
+      const n = parseFloat(String(draft[f.key]).replace(/[^0-9.]/g, ''))
+      parsed[f.key] = isNaN(n) ? 0 : n
+    }
+    onSave(parsed)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="w-80 rounded-2xl border border-admin-border bg-admin-surface p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-sm font-semibold text-white mb-4">{label}</h3>
+        <div className="space-y-3">
+          {fields.map((f) => (
+            <div key={f.key}>
+              <label className="block text-[11px] text-slate-500 uppercase tracking-wider mb-1">{f.label}</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={draft[f.key]}
+                  onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
+                  className="w-full rounded-lg border border-admin-border bg-admin-bg pl-7 pr-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 mt-5">
+          <button
+            onClick={handleSave}
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium transition-colors"
+          >
+            <Check size={14} /> Save
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 border border-admin-border text-slate-400 hover:text-white text-sm transition-colors"
+          >
+            <X size={14} /> Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main dashboard ────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
+  const navigate       = useNavigate()
   const user           = useAuthStore(selectUser)
   const adminTheme     = useThemeStore((s) => s.adminTheme)
   const isDark         = adminTheme === 'dark'
   const getDailyQuote  = useQuoteStore((s) => s.getDailyQuote)
   const projects       = useProjectStore((s) => s.projects)
-  const invoices       = useProjectStore((s) => s.invoices)
   const leads          = useProjectStore((s) => s.leads)
+  const financials     = useProjectStore((s) => s.financials)
+  const setFinancials  = useProjectStore((s) => s.setFinancials)
 
   const quote          = getDailyQuote()
   const activeProjects = projects.filter((p) => p.status === 'Active' || p.status === 'Review')
-  const paidRevenue    = invoices.filter((i) => i.status === 'Paid').reduce((s, i) => s + i.amount, 0)
-  const monthlyGoalPct = Math.round((MOCK_FINANCIALS.currentMonth.revenue / MOCK_FINANCIALS.revenueGoalMonthly) * 100)
-  const yearlyGoalPct  = Math.round((MOCK_FINANCIALS.ytd.revenue / MOCK_FINANCIALS.revenueGoalYearly) * 100)
+  const openLeads      = leads.filter((l) => !l.converted)
+
+  const monthlyGoalPct = financials.goalMonthly > 0
+    ? Math.min(100, Math.round((financials.monthlyRevenue / financials.goalMonthly) * 100))
+    : 0
+  const yearlyGoalPct  = financials.goalYearly > 0
+    ? Math.min(100, Math.round((financials.ytdRevenue / financials.goalYearly) * 100))
+    : 0
+
+  const [editing, setEditing] = useState(null) // 'monthly' | 'ytd'
 
   const stats = [
     {
+      key:   'monthly',
       label: 'Monthly Revenue',
-      value: formatCurrency(MOCK_FINANCIALS.currentMonth.revenue),
-      sub: `Goal: ${formatCurrency(MOCK_FINANCIALS.revenueGoalMonthly)}`,
-      pct: monthlyGoalPct,
-      icon: <DollarSign size={18} className="text-brand-400" />,
+      value: formatCurrency(financials.monthlyRevenue),
+      sub:   `Goal: ${formatCurrency(financials.goalMonthly)}`,
+      pct:   monthlyGoalPct,
+      icon:  <DollarSign size={18} className="text-brand-400" />,
+      onEdit: () => setEditing('monthly'),
     },
     {
+      key:   'ytd',
       label: 'YTD Revenue',
-      value: formatCurrency(MOCK_FINANCIALS.ytd.revenue),
-      sub: `Goal: ${formatCurrency(MOCK_FINANCIALS.revenueGoalYearly)}`,
-      pct: yearlyGoalPct,
-      icon: <TrendingUp size={18} className="text-emerald-400" />,
+      value: formatCurrency(financials.ytdRevenue),
+      sub:   `Goal: ${formatCurrency(financials.goalYearly)}`,
+      pct:   yearlyGoalPct,
+      icon:  <TrendingUp size={18} className="text-emerald-400" />,
+      onEdit: () => setEditing('ytd'),
     },
     {
+      key:   'projects',
       label: 'Active Projects',
       value: activeProjects.length,
-      sub: `${projects.length} total`,
-      pct: null,
-      icon: <FolderKanban size={18} className="text-blue-400" />,
+      sub:   `${projects.length} total`,
+      pct:   null,
+      icon:  <FolderKanban size={18} className="text-blue-400" />,
+      onAdd: () => navigate('/admin/projects'),
     },
     {
+      key:   'leads',
       label: 'Open Leads',
-      value: leads.filter((l) => !l.converted).length,
-      sub: `${leads.length} total`,
-      pct: null,
-      icon: <Users size={18} className="text-purple-400" />,
+      value: openLeads.length,
+      sub:   `${leads.length} total`,
+      pct:   null,
+      icon:  <Users size={18} className="text-purple-400" />,
+      onAdd: () => navigate('/admin/leads'),
     },
   ]
 
   return (
     <AdminLayout>
-      {/* Header */}
       <PageHeader
         dark={isDark}
         title={`Good day, ${user?.name ?? 'Lo'} 👋`}
@@ -78,10 +153,30 @@ export default function AdminDashboard() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {stats.map((s) => (
-          <DarkCard key={s.label} className="p-5">
+          <DarkCard key={s.label} className="p-5 relative">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs text-slate-500 uppercase tracking-wider">{s.label}</span>
-              <span className="p-1.5 rounded-lg bg-admin-bg">{s.icon}</span>
+              <div className="flex items-center gap-1">
+                {s.onEdit && (
+                  <button
+                    onClick={s.onEdit}
+                    className="p-1 rounded text-slate-500 hover:text-brand-400 hover:bg-admin-bg transition-colors"
+                    title="Edit"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                )}
+                {s.onAdd && (
+                  <button
+                    onClick={s.onAdd}
+                    className="p-1 rounded text-slate-500 hover:text-brand-400 hover:bg-admin-bg transition-colors"
+                    title="Add new"
+                  >
+                    <Plus size={13} />
+                  </button>
+                )}
+                <span className="p-1.5 rounded-lg bg-admin-bg">{s.icon}</span>
+              </div>
             </div>
             <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{s.value}</p>
             <p className="text-xs text-slate-500 mt-0.5">{s.sub}</p>
@@ -146,6 +241,32 @@ export default function AdminDashboard() {
           </table>
         </div>
       </DarkCard>
+
+      {/* Revenue edit modals */}
+      {editing === 'monthly' && (
+        <RevenueEditModal
+          label="Monthly Revenue"
+          fields={[
+            { key: 'monthlyRevenue', label: 'Revenue This Month' },
+            { key: 'goalMonthly',    label: 'Monthly Goal' },
+          ]}
+          values={{ monthlyRevenue: financials.monthlyRevenue, goalMonthly: financials.goalMonthly }}
+          onSave={setFinancials}
+          onClose={() => setEditing(null)}
+        />
+      )}
+      {editing === 'ytd' && (
+        <RevenueEditModal
+          label="YTD Revenue"
+          fields={[
+            { key: 'ytdRevenue',  label: 'Revenue Year to Date' },
+            { key: 'goalYearly',  label: 'Annual Goal' },
+          ]}
+          values={{ ytdRevenue: financials.ytdRevenue, goalYearly: financials.goalYearly }}
+          onSave={setFinancials}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </AdminLayout>
   )
 }
