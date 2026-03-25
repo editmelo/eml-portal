@@ -128,7 +128,6 @@ const useAuthStore = create((set, get) => ({
   saveProfile: async (patch) => {
     const current = get().user
     if (!current) return { success: false }
-    set({ isLoading: true, error: null })
     const { error } = await supabase.auth.updateUser({
       data: {
         name:       patch.name     ?? current.name,
@@ -138,13 +137,10 @@ const useAuthStore = create((set, get) => ({
         avatar_url: patch.avatar   ?? current.avatar,
       },
     })
-    if (error) {
-      set({ isLoading: false, error: error.message })
-      return { success: false, error: error.message }
-    }
+    if (error) return { success: false, error: error.message }
     // Fetch server-fresh user so metadata is up-to-date in the store
     const { data: { user: freshUser } } = await supabase.auth.getUser()
-    set({ user: freshUser ? shapeUser(freshUser) : { ...current, ...patch }, isLoading: false })
+    set({ user: freshUser ? shapeUser(freshUser) : { ...current, ...patch } })
     return { success: true }
   },
 
@@ -153,9 +149,7 @@ const useAuthStore = create((set, get) => ({
    * Returns { success, error? }
    */
   updatePassword: async (newPassword) => {
-    set({ isLoading: true, error: null })
     const { error } = await supabase.auth.updateUser({ password: newPassword })
-    set({ isLoading: false })
     if (error) return { success: false, error: error.message }
     return { success: true }
   },
