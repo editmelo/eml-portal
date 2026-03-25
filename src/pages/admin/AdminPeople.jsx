@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AdminLayout from '../../components/layout/AdminLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import { DarkCard } from '../../components/ui/Card'
@@ -572,11 +572,14 @@ function PendingInvites({ isDark }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AdminPeople() {
-  const isDark = useThemeStore((s) => s.adminTheme) === 'dark'
+  const isDark        = useThemeStore((s) => s.adminTheme) === 'dark'
+  const loadInvites   = useInviteStore((s) => s.loadInvites)
   const [query,       setQuery]       = useState('')
   const [filter,      setFilter]      = useState('all') // all | clients | designers
   const [showInvite,  setShowInvite]  = useState(false)
   const [inviteRole,  setInviteRole]  = useState('CLIENT')
+
+  useEffect(() => { loadInvites() }, [])
 
   const openInvite = (role = 'CLIENT') => { setInviteRole(role); setShowInvite(true) }
 
