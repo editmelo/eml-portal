@@ -1,143 +1,246 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { supabase } from '../lib/supabase'
 
-/**
- * Messaging Store — powers the Inbox across all three portals.
- *
- * Conversations are 1:1 threads between two users.
- * Access rules are enforced in the UI layer (not here):
- *   Client   → can only message designers on their project
- *   Designer → can message admin + clients they've worked with
- *   Admin    → can message anyone
- */
-const useMessagingStore = create(
-  persist(
-    (set, get) => ({
-      // ── State ──────────────────────────────────────────────────────────────
-      conversations: [],
-      // { [convId]: Message[] }
-      messages: {},
-      // { [userId]: { [convId]: ISO timestamp } } — last-read per conv per user
-      lastRead: {},
+// ── Shape converters ───────────────────────────────────────────────────────────
+function dbConvToLocal(row) {
+  return {
+    id:               row.id,
+    participantIds:   row.participant_ids,
+    participantNames: row.participant_names,
+    lastMessageAt:    row.last_message_at,
+    lastMessageText:  row.last_message_text,
+    createdAt:        row.created_at,
+  }
+}
 
-      // ── Actions ────────────────────────────────────────────────────────────
+function dbMsgToLocal(row) {
+  return {
+    id:         row.id,
+    senderId:   row.sender_id,
+    senderName: row.sender_name,
+    text:       row.text,
+    timestamp:  row.created_at,
+  }
+}
 
-      /** All conversations for a user, newest first */
-      getConversations: (userId) =>
-        get()
-          .conversations.filter((c) => c.participantIds.includes(userId))
-          .sort(
-            (a, b) =>
-              new Date(b.lastMessageAt ?? b.createdAt) -
-              new Date(a.lastMessageAt ?? a.createdAt)
-          ),
+const useMessagingStore = create((set, get) => ({
+  conversations: [],
+  messages:      {},
+  lastRead:      {},
+  _realtimeSub:  null,
 
-      /**
-       * Get existing 1:1 conversation or create a new one.
-       * Returns the conversation id.
-       */
-      getOrCreateConversation: (user1Id, user1Name, user2Id, user2Name) => {
-        const existing = get().conversations.find(
-          (c) =>
-            c.participantIds.length === 2 &&
-            c.participantIds.includes(user1Id) &&
-            c.participantIds.includes(user2Id)
-        )
-        if (existing) return existing.id
+  // ── Load ────────────────────────────────────────────────────────────────────
 
-        const newConv = {
-          id:               `conv_${Date.now()}`,
-          participantIds:   [user1Id, user2Id],
-          participantNames: { [user1Id]: user1Name, [user2Id]: user2Name },
-          lastMessageAt:    null,
-          lastMessageText:  null,
-          createdAt:        new Date().toISOString(),
-        }
-        set((state) => ({ conversations: [newConv, ...state.conversations] }))
-        return newConv.id
-      },
+  /** Fetch this user's conversations + last-read state from Supabase */
+  loadConversations: async (userId) => {
+    if (!userId) return
 
-      /** Send a message and update conversation metadata */
-      sendMessage: (convId, senderId, senderName, text) => {
-        const msg = {
-          id:         `msg_${Date.now()}`,
-          senderId,
-          senderName,
-          text:       text.trim(),
-          timestamp:  new Date().toISOString(),
-        }
-        set((state) => ({
-          messages: {
-            ...state.messages,
-            [convId]: [...(state.messages[convId] ?? []), msg],
-          },
-          conversations: state.conversations.map((c) =>
-            c.id === convId
-              ? { ...c, lastMessageAt: msg.timestamp, lastMessageText: text.trim() }
-              : c
-          ),
-          // Sender auto-marks as read
-          lastRead: {
-            ...state.lastRead,
-            [senderId]: {
-              ...(state.lastRead[senderId] ?? {}),
-              [convId]: msg.timestamp,
-            },
-          },
-        }))
-      },
+    const { data: convRows, error } = await supabase
+      .from('conversations')
+      .select('*')
+      .contains('participant_ids', [userId])
+      .order('last_message_at', { ascending: false, nullsFirst: false })
 
-      /** Mark a conversation as fully read for a user */
-      markRead: (userId, convId) => {
-        set((state) => ({
-          lastRead: {
-            ...state.lastRead,
-            [userId]: {
-              ...(state.lastRead[userId] ?? {}),
-              [convId]: new Date().toISOString(),
-            },
-          },
-        }))
-      },
-
-      /** Total unread message count for a user across all conversations */
-      getTotalUnread: (userId) => {
-        const convs       = get().conversations.filter((c) => c.participantIds.includes(userId))
-        const userLastRead = get().lastRead[userId] ?? {}
-        const allMessages  = get().messages
-        let total = 0
-        for (const conv of convs) {
-          const msgs      = allMessages[conv.id] ?? []
-          const lastReadAt = userLastRead[conv.id]
-          total += msgs.filter(
-            (m) =>
-              m.senderId !== userId &&
-              (!lastReadAt || new Date(m.timestamp) > new Date(lastReadAt))
-          ).length
-        }
-        return total
-      },
-
-      /** Unread count for a specific conversation */
-      getConvUnread: (userId, convId) => {
-        const msgs      = get().messages[convId] ?? []
-        const lastReadAt = get().lastRead[userId]?.[convId]
-        return msgs.filter(
-          (m) =>
-            m.senderId !== userId &&
-            (!lastReadAt || new Date(m.timestamp) > new Date(lastReadAt))
-        ).length
-      },
-    }),
-    {
-      name: 'eml_messaging',
-      partialize: (state) => ({
-        conversations: state.conversations,
-        messages:      state.messages,
-        lastRead:      state.lastRead,
-      }),
+    if (!error && convRows) {
+      set({ conversations: convRows.map(dbConvToLocal) })
     }
-  )
-)
+
+    const { data: lrRows } = await supabase
+      .from('message_last_read')
+      .select('*')
+      .eq('user_id', userId)
+
+    if (lrRows) {
+      const lr = { [userId]: {} }
+      lrRows.forEach((r) => { lr[userId][r.conversation_id] = r.last_read_at })
+      set((state) => ({ lastRead: { ...state.lastRead, ...lr } }))
+    }
+
+    // Live updates
+    get()._subscribeRealtime(userId)
+  },
+
+  /** Fetch messages for a specific conversation */
+  loadMessages: async (convId) => {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', convId)
+      .order('created_at', { ascending: true })
+
+    if (!error && data) {
+      set((state) => ({
+        messages: { ...state.messages, [convId]: data.map(dbMsgToLocal) },
+      }))
+    }
+  },
+
+  // ── Actions ─────────────────────────────────────────────────────────────────
+
+  getOrCreateConversation: async (user1Id, user1Name, user2Id, user2Name) => {
+    // Check local state first
+    const local = get().conversations.find(
+      (c) => c.participantIds.length === 2 &&
+             c.participantIds.includes(user1Id) &&
+             c.participantIds.includes(user2Id)
+    )
+    if (local) return local.id
+
+    // Check Supabase for existing
+    const { data: existing } = await supabase
+      .from('conversations')
+      .select('id, participant_ids')
+      .contains('participant_ids', [user1Id, user2Id])
+
+    const match = existing?.find(
+      (c) => c.participant_ids.includes(user1Id) &&
+             c.participant_ids.includes(user2Id) &&
+             c.participant_ids.length === 2
+    )
+    if (match) {
+      await get().loadConversations(user1Id)
+      return match.id
+    }
+
+    // Create new
+    const id  = `conv_${Date.now()}`
+    const now = new Date().toISOString()
+    const newRow = {
+      id,
+      participant_ids:   [user1Id, user2Id],
+      participant_names: { [user1Id]: user1Name, [user2Id]: user2Name },
+    }
+    await supabase.from('conversations').insert(newRow)
+
+    set((state) => ({
+      conversations: [
+        dbConvToLocal({ ...newRow, last_message_at: null, last_message_text: null, created_at: now }),
+        ...state.conversations,
+      ],
+    }))
+    return id
+  },
+
+  sendMessage: async (convId, senderId, senderName, text) => {
+    const trimmed = text.trim()
+    const id      = `msg_${Date.now()}`
+    const now     = new Date().toISOString()
+
+    // Optimistic local update so the UI feels instant
+    const localMsg = { id, senderId, senderName, text: trimmed, timestamp: now }
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [convId]: [...(state.messages[convId] ?? []), localMsg],
+      },
+      conversations: state.conversations.map((c) =>
+        c.id === convId ? { ...c, lastMessageAt: now, lastMessageText: trimmed } : c
+      ),
+      lastRead: {
+        ...state.lastRead,
+        [senderId]: { ...(state.lastRead[senderId] ?? {}), [convId]: now },
+      },
+    }))
+
+    // Persist
+    await supabase.from('messages').insert({
+      id,
+      conversation_id: convId,
+      sender_id:       senderId,
+      sender_name:     senderName,
+      text:            trimmed,
+    })
+    await supabase.from('conversations').update({
+      last_message_at:   now,
+      last_message_text: trimmed,
+    }).eq('id', convId)
+  },
+
+  markRead: async (userId, convId) => {
+    const now = new Date().toISOString()
+    set((state) => ({
+      lastRead: {
+        ...state.lastRead,
+        [userId]: { ...(state.lastRead[userId] ?? {}), [convId]: now },
+      },
+    }))
+    await supabase.from('message_last_read').upsert({
+      user_id:         userId,
+      conversation_id: convId,
+      last_read_at:    now,
+    })
+  },
+
+  getTotalUnread: (userId) => {
+    const convs        = get().conversations.filter((c) => c.participantIds.includes(userId))
+    const userLastRead = get().lastRead[userId] ?? {}
+    const allMessages  = get().messages
+    let total = 0
+    for (const conv of convs) {
+      const msgs       = allMessages[conv.id] ?? []
+      const lastReadAt = userLastRead[conv.id]
+      total += msgs.filter(
+        (m) => m.senderId !== userId && (!lastReadAt || new Date(m.timestamp) > new Date(lastReadAt))
+      ).length
+    }
+    return total
+  },
+
+  getConvUnread: (userId, convId) => {
+    const msgs       = get().messages[convId] ?? []
+    const lastReadAt = get().lastRead[userId]?.[convId]
+    return msgs.filter(
+      (m) => m.senderId !== userId && (!lastReadAt || new Date(m.timestamp) > new Date(lastReadAt))
+    ).length
+  },
+
+  // ── Realtime ────────────────────────────────────────────────────────────────
+
+  _subscribeRealtime: (userId) => {
+    const existing = get()._realtimeSub
+    if (existing) supabase.removeChannel(existing)
+
+    const channel = supabase
+      .channel(`inbox_${userId}`)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const row     = payload.new
+          const convIds = get().conversations.map((c) => c.id)
+          if (!convIds.includes(row.conversation_id)) return
+          // Skip dedup (optimistic update already added it from this device)
+          const already = (get().messages[row.conversation_id] ?? []).find((m) => m.id === row.id)
+          if (already) return
+
+          const localMsg = dbMsgToLocal(row)
+          set((state) => ({
+            messages: {
+              ...state.messages,
+              [row.conversation_id]: [
+                ...(state.messages[row.conversation_id] ?? []),
+                localMsg,
+              ],
+            },
+            conversations: state.conversations.map((c) =>
+              c.id === row.conversation_id
+                ? { ...c, lastMessageAt: row.created_at, lastMessageText: row.text }
+                : c
+            ),
+          }))
+        }
+      )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'conversations' },
+        async (payload) => {
+          const row = payload.new
+          if (!row.participant_ids.includes(userId)) return
+          await get().loadConversations(userId)
+        }
+      )
+      .subscribe()
+
+    set({ _realtimeSub: channel })
+  },
+}))
 
 export default useMessagingStore

@@ -29,6 +29,8 @@ export default function DesignerInbox() {
   const sendMessage             = useMessagingStore((s) => s.sendMessage)
   const markRead                = useMessagingStore((s) => s.markRead)
   const getOrCreateConversation = useMessagingStore((s) => s.getOrCreateConversation)
+  const loadConversations       = useMessagingStore((s) => s.loadConversations)
+  const loadMessages            = useMessagingStore((s) => s.loadMessages)
 
   const [activeConvId, setActiveConvId] = useState(null)
   const [newMsg,       setNewMsg]       = useState('')
@@ -51,6 +53,8 @@ export default function DesignerInbox() {
   const activeConv     = conversations.find((c) => c.id === activeConvId)
   const activeMessages = activeConvId ? (messages[activeConvId] ?? []) : []
 
+  useEffect(() => { loadConversations(user?.id) }, [user?.id])
+
   useEffect(() => {
     if (activeConvId) markRead(user?.id, activeConvId)
   }, [activeConvId])
@@ -63,13 +67,15 @@ export default function DesignerInbox() {
     setActiveConvId(convId)
     setMobileView('thread')
     markRead(user?.id, convId)
+    loadMessages(convId)
   }
 
-  const handleStartConversation = (contact) => {
-    const convId = getOrCreateConversation(user.id, user.name, contact.id, contact.name)
+  const handleStartConversation = async (contact) => {
+    const convId = await getOrCreateConversation(user.id, user.name, contact.id, contact.name)
     setShowPicker(false)
     setActiveConvId(convId)
     setMobileView('thread')
+    loadMessages(convId)
   }
 
   const handleSend = () => {
