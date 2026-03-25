@@ -7,6 +7,7 @@ import useThemeStore from '../../store/themeStore'
 import { cn } from '../../lib/utils'
 import { Mail, Send, Search, X, Plus, MessageSquare, ArrowLeft } from 'lucide-react'
 import { sendNotification } from '../../lib/emailService'
+import { supabase } from '../../lib/supabase'
 
 function otherPersonName(conv, userId) {
   const otherId = conv?.participantIds?.find((id) => id !== userId)
@@ -50,8 +51,14 @@ export default function AdminInbox() {
     [allConvs, user?.id]
   )
 
-  // Contacts list — populated from real users once Supabase user management is wired up
-  const allContacts = useMemo(() => [], [user?.id])
+  const [allContacts, setAllContacts] = useState([])
+  useEffect(() => {
+    if (!user?.id) return
+    supabase.from('profiles').select('id, name, email, role').neq('id', user.id)
+      .then(({ data }) => {
+        if (data) setAllContacts(data.map((p) => ({ id: p.id, name: p.name ?? p.email, role: p.role })))
+      })
+  }, [user?.id])
 
   const activeConv     = conversations.find((c) => c.id === activeConvId)
   const activeMessages = activeConvId ? (messages[activeConvId] ?? []) : []

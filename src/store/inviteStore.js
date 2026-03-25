@@ -46,10 +46,11 @@ const useInviteStore = create((set) => ({
       status:       'pending',
       sent_at:      new Date().toISOString(),
     }
+    // Always show locally first
+    set((state) => ({ invites: [dbToLocal(row), ...state.invites] }))
+    // Sync to Supabase for cross-device — log but never block the UI
     const { error } = await supabase.from('invites').insert(row)
-    if (!error) {
-      set((state) => ({ invites: [dbToLocal(row), ...state.invites] }))
-    }
+    if (error) console.error('[inviteStore] Supabase sync failed:', error.message, error)
     return dbToLocal(row)
   },
 

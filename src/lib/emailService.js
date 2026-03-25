@@ -75,8 +75,9 @@ export async function sendInviteEmail({ role, ownerName, email, companyName, mes
 
   const signupUrl = `${window.location.origin}/signup`
 
-  // Embed the link directly in the message body so Make doesn't need to template it
-  const fullMessage = `${message}\n\nCreate your account here:\n${signupUrl}`
+  // Embed the link as HTML so it renders as a clickable anchor in Make's HTML email
+  const fullMessage = message.replace(/\n/g, '<br>') +
+    `<br><br><a href="${signupUrl}" style="display:inline-block;padding:10px 20px;background:#3b82f6;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Create Your Account →</a><br><br>${signupUrl}`
 
   await _send({
     to_name:    ownerName,

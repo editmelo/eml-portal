@@ -138,6 +138,15 @@ const useAuthStore = create((set, get) => ({
       },
     })
     if (error) return { success: false, error: error.message }
+    // Sync to profiles table so admin People tab stays current
+    await supabase.from('profiles').upsert({
+      id:         current.id,
+      name:       patch.name     ?? current.name,
+      business:   patch.business ?? current.business,
+      phone:      patch.phone    ?? current.phone,
+      nickname:   patch.nickname ?? current.nickname,
+      avatar_url: patch.avatar   ?? current.avatar,
+    })
     // Fetch server-fresh user so metadata is up-to-date in the store
     const { data: { user: freshUser } } = await supabase.auth.getUser()
     set({ user: freshUser ? shapeUser(freshUser) : { ...current, ...patch } })

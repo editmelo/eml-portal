@@ -5,6 +5,7 @@ import useAuthStore, { selectUser } from '../../store/authStore'
 import useMessagingStore from '../../store/messagingStore'
 import { cn } from '../../lib/utils'
 import { Mail, Send, Search, X, Plus, MessageSquare, ArrowLeft } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 
 function otherPersonName(conv, userId) {
   if (!conv) return ''
@@ -48,7 +49,14 @@ export default function DesignerInbox() {
   )
 
   // Contacts populated once Supabase user management is wired up
-  const allContacts = useMemo(() => [], [user?.id])
+  const [allContacts, setAllContacts] = useState([])
+  useEffect(() => {
+    if (!user?.id) return
+    supabase.from('profiles').select('id, name, email, role').neq('id', user.id)
+      .then(({ data }) => {
+        if (data) setAllContacts(data.map((p) => ({ id: p.id, name: p.name ?? p.email, role: p.role })))
+      })
+  }, [user?.id])
 
   const activeConv     = conversations.find((c) => c.id === activeConvId)
   const activeMessages = activeConvId ? (messages[activeConvId] ?? []) : []

@@ -66,7 +66,7 @@ export default function InviteModal({ onClose, isDark, defaultRole = 'CLIENT' })
 
     setSending(true)
     try {
-      addInvite({ role, companyName, ownerName, email, displayName, jobTitle, phone, location, foundUs, message })
+      await addInvite({ role, companyName, ownerName, email, displayName, jobTitle, phone, location, foundUs, message })
       await sendInviteEmail({ role, ownerName, email, companyName, message })
       onClose()
     } finally {

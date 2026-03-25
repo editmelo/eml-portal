@@ -18,9 +18,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { sendInviteEmail } from '../../lib/emailService'
-
-const CLIENTS   = []
-const DESIGNERS = []
+import { supabase } from '../../lib/supabase'
 
 function getProjects(userId, projects) {
   return projects.filter(
@@ -578,14 +576,31 @@ export default function AdminPeople() {
   const [filter,      setFilter]      = useState('all') // all | clients | designers
   const [showInvite,  setShowInvite]  = useState(false)
   const [inviteRole,  setInviteRole]  = useState('CLIENT')
+  const [clients,     setClients]     = useState([])
+  const [designers,   setDesigners]   = useState([])
 
   useEffect(() => { loadInvites() }, [])
+
+  useEffect(() => {
+    supabase.from('profiles').select('*').then(({ data, error }) => {
+      console.log('[AdminPeople] profiles query →', { data, error })
+      if (error || !data) return
+      setClients(data
+        .filter((p) => p.role === 'CLIENT')
+        .map((p) => ({ id: p.id, name: p.name ?? p.email, email: p.email, company: p.business, phone: p.phone, avatar: p.avatar_url }))
+      )
+      setDesigners(data
+        .filter((p) => p.role === 'DESIGNER')
+        .map((p) => ({ id: p.id, name: p.name ?? p.email, email: p.email, phone: p.phone, avatar: p.avatar_url }))
+      )
+    })
+  }, [])
 
   const openInvite = (role = 'CLIENT') => { setInviteRole(role); setShowInvite(true) }
 
   const allPeople = [
-    ...CLIENTS.map((c)   => ({ ...c, _type: 'client' })),
-    ...DESIGNERS.map((d) => ({ ...d, _type: 'designer' })),
+    ...clients.map((c)   => ({ ...c, _type: 'client' })),
+    ...designers.map((d) => ({ ...d, _type: 'designer' })),
   ]
 
   const filtered = allPeople.filter((p) => {
@@ -600,7 +615,7 @@ export default function AdminPeople() {
         <PageHeader
           dark={isDark}
           title="People"
-          subtitle={`${CLIENTS.length} client${CLIENTS.length !== 1 ? 's' : ''} · ${DESIGNERS.length} designer${DESIGNERS.length !== 1 ? 's' : ''}`}
+          subtitle={`${clients.length} client${clients.length !== 1 ? 's' : ''} · ${designers.length} designer${designers.length !== 1 ? 's' : ''}`}
         />
         <button
           onClick={() => openInvite('CLIENT')}
