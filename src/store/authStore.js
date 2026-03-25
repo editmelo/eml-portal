@@ -36,7 +36,9 @@ const useAuthStore = create((set, get) => ({
   init: async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user) {
-      set({ user: shapeUser(session.user), isAuthenticated: true, isLoading: false })
+      // getUser() fetches server-fresh metadata — avoids stale JWT cache on other devices
+      const { data: { user: freshUser } } = await supabase.auth.getUser()
+      set({ user: shapeUser(freshUser ?? session.user), isAuthenticated: true, isLoading: false })
     } else {
       set({ isLoading: false })
     }
@@ -140,7 +142,9 @@ const useAuthStore = create((set, get) => ({
       set({ isLoading: false, error: error.message })
       return { success: false, error: error.message }
     }
-    set({ user: { ...current, ...patch }, isLoading: false })
+    // Fetch server-fresh user so metadata is up-to-date in the store
+    const { data: { user: freshUser } } = await supabase.auth.getUser()
+    set({ user: freshUser ? shapeUser(freshUser) : { ...current, ...patch }, isLoading: false })
     return { success: true }
   },
 

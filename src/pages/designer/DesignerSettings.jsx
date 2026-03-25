@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import PortalLayout from '../../components/layout/PortalLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import { Card } from '../../components/ui/Card'
@@ -109,6 +109,18 @@ function ProfileTab({ user }) {
   const [pwSaved, setPwSaved]   = useState(false)
   const [pwError, setPwError]   = useState('')
   const fileRef                 = useRef(null)
+
+  useEffect(() => {
+    setForm({
+      name:      user?.name      ?? '',
+      email:     user?.email     ?? '',
+      phone:     user?.phone     ?? '',
+      specialty: user?.specialty ?? '',
+      portfolio: user?.portfolio ?? '',
+      nickname:  user?.nickname  ?? '',
+    })
+    setAvatar(existingProfile?.avatar ?? user?.avatar ?? null)
+  }, [user?.id, user?.name, user?.phone, user?.nickname, user?.avatar])
 
   const INPUT = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30 bg-white'
   const LABEL = 'block text-xs font-medium text-slate-500 mb-1.5'

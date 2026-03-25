@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import AdminLayout from '../../components/layout/AdminLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import useAuthStore, { selectUser } from '../../store/authStore'
@@ -228,6 +228,18 @@ function ProfileTab({ user, isDark }) {
   })
   const [avatar, setAvatar]     = useState(user?.avatar ?? null)
   const [saving, setSaving]     = useState(false)
+
+  // Re-sync form when store user updates (e.g. after saveProfile resolves)
+  useEffect(() => {
+    setForm({
+      name:     user?.name     ?? '',
+      email:    user?.email    ?? '',
+      business: user?.business ?? 'Edit Me Lo',
+      phone:    user?.phone    ?? '',
+      nickname: user?.nickname ?? '',
+    })
+    setAvatar(user?.avatar ?? null)
+  }, [user?.id, user?.name, user?.phone, user?.business, user?.nickname, user?.avatar])
   const [saved, setSaved]       = useState(false)
   const [saveErr, setSaveErr]   = useState('')
   const [pwForm, setPwForm]     = useState({ current: '', next: '' })
