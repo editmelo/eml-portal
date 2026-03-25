@@ -14,6 +14,7 @@ function shapeUser(supabaseUser) {
     projectId: meta.projectId ?? null,
     phone:     meta.phone    ?? null,
     business:  meta.business ?? null,
+    nickname:  meta.nickname ?? null,
   }
 }
 
@@ -131,6 +132,7 @@ const useAuthStore = create((set, get) => ({
         name:       patch.name     ?? current.name,
         business:   patch.business ?? current.business,
         phone:      patch.phone    ?? current.phone,
+        nickname:   patch.nickname ?? current.nickname,
         avatar_url: patch.avatar   ?? current.avatar,
       },
     })

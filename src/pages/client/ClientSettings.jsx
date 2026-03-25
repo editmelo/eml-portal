@@ -95,14 +95,16 @@ function Toggle({ enabled, onToggle }) {
 // ── Profile Tab ───────────────────────────────────────────────────────────────
 function ProfileTab({ user }) {
   const updateUser        = useAuthStore((s) => s.updateUser)
+  const saveProfile       = useAuthStore((s) => s.saveProfile)
   const saveClientProfile = useProjectStore((s) => s.saveClientProfile)
   const existingProfile   = useProjectStore((s) => s.clientProfiles[user?.id])
 
   const [form, setForm] = useState({
-    name:    user?.name    ?? '',
-    email:   user?.email   ?? '',
-    company: user?.company ?? '',
-    phone:   user?.phone   ?? '',
+    name:     user?.name     ?? '',
+    email:    user?.email    ?? '',
+    company:  user?.company  ?? '',
+    phone:    user?.phone    ?? '',
+    nickname: user?.nickname ?? '',
   })
   const [avatar, setAvatar] = useState(existingProfile?.avatar ?? null)
   const [saved, setSaved]   = useState(false)
@@ -122,6 +124,7 @@ function ProfileTab({ user }) {
   const handleSave = () => {
     updateUser({ ...form })
     saveClientProfile(user?.id, { avatar, company: form.company, phone: form.phone, name: form.name })
+    saveProfile({ name: form.name, phone: form.phone, nickname: form.nickname, avatar })
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
@@ -179,6 +182,10 @@ function ProfileTab({ user }) {
         <div>
           <label className={LABEL}>Phone</label>
           <input className={INPUT} type="tel" placeholder="(555) 000-0000" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+        </div>
+        <div>
+          <label className={LABEL}>Nickname <span className="font-normal text-slate-400">(optional)</span></label>
+          <input className={INPUT} placeholder="What would you like to be called?" value={form.nickname} onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))} />
         </div>
       </div>
 

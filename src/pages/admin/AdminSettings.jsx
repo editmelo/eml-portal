@@ -224,6 +224,7 @@ function ProfileTab({ user, isDark }) {
     email:    user?.email    ?? '',
     business: user?.business ?? 'Edit Me Lo',
     phone:    user?.phone    ?? '',
+    nickname: user?.nickname ?? '',
   })
   const [avatar, setAvatar]     = useState(user?.avatar ?? null)
   const [saving, setSaving]     = useState(false)
@@ -277,7 +278,7 @@ function ProfileTab({ user, isDark }) {
   const handleSave = async () => {
     setSaving(true)
     setSaveErr('')
-    const result = await saveProfile({ name: form.name, business: form.business, phone: form.phone, avatar })
+    const result = await saveProfile({ name: form.name, business: form.business, phone: form.phone, nickname: form.nickname, avatar })
     setSaving(false)
     if (!result.success) { setSaveErr(result.error ?? 'Failed to save.'); return }
     setSaved(true)
@@ -372,6 +373,17 @@ function ProfileTab({ user, isDark }) {
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
               placeholder="(555) 000-0000"
               type="tel"
+            />
+          </div>
+          <div>
+            <label className={cn('block text-xs font-medium mb-1.5', subText)}>
+              Nickname <span className={cn('font-normal', subText)}>(optional)</span>
+            </label>
+            <input
+              className={inputCls}
+              value={form.nickname}
+              onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))}
+              placeholder="What would you like to be called?"
             />
           </div>
         </div>
