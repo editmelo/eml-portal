@@ -116,7 +116,43 @@ const useAuthStore = create((set, get) => ({
    */
   setViewRole: (role) => set({ viewRole: role }),
 
-  /** Update local user profile fields (name, avatar, etc.) */
+  /**
+   * Save profile changes to Supabase user_metadata so they persist across sessions.
+   * Returns { success, error? }
+   */
+  saveProfile: async (patch) => {
+    const current = get().user
+    if (!current) return { success: false }
+    set({ isLoading: true, error: null })
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        name:       patch.name     ?? current.name,
+        business:   patch.business ?? current.business,
+        phone:      patch.phone    ?? current.phone,
+        avatar_url: patch.avatar   ?? current.avatar,
+      },
+    })
+    if (error) {
+      set({ isLoading: false, error: error.message })
+      return { success: false, error: error.message }
+    }
+    set({ user: { ...current, ...patch }, isLoading: false })
+    return { success: true }
+  },
+
+  /**
+   * Update password via Supabase (no current password required — trusts active session).
+   * Returns { success, error? }
+   */
+  updatePassword: async (newPassword) => {
+    set({ isLoading: true, error: null })
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    set({ isLoading: false })
+    if (error) return { success: false, error: error.message }
+    return { success: true }
+  },
+
+  /** Update local user fields only (for non-persisted in-session changes) */
   updateUser: (patch) => {
     const current = get().user
     if (!current) return

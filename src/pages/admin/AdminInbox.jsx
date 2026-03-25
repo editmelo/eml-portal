@@ -5,7 +5,7 @@ import useAuthStore, { selectUser } from '../../store/authStore'
 import useMessagingStore from '../../store/messagingStore'
 import useThemeStore from '../../store/themeStore'
 import { cn } from '../../lib/utils'
-import { Mail, Send, Search, X, Plus, MessageSquare } from 'lucide-react'
+import { Mail, Send, Search, X, Plus, MessageSquare, ArrowLeft } from 'lucide-react'
 import { sendNotification } from '../../lib/emailService'
 
 function otherPersonName(conv, userId) {
@@ -36,6 +36,7 @@ export default function AdminInbox() {
   const [newMsg,       setNewMsg]       = useState('')
   const [showPicker,   setShowPicker]   = useState(false)
   const [search,       setSearch]       = useState('')
+  const [mobileView,   setMobileView]   = useState('list') // 'list' | 'thread'
   const msgEndRef = useRef(null)
   const inputRef  = useRef(null)
 
@@ -63,6 +64,7 @@ export default function AdminInbox() {
 
   const openConversation = (convId) => {
     setActiveConvId(convId)
+    setMobileView('thread')
     markRead(user?.id, convId)
   }
 
@@ -70,6 +72,7 @@ export default function AdminInbox() {
     const convId = getOrCreateConversation(user.id, user.name, contact.id, contact.name)
     setShowPicker(false)
     setActiveConvId(convId)
+    setMobileView('thread')
   }
 
   const handleSend = () => {
@@ -113,12 +116,21 @@ export default function AdminInbox() {
 
   return (
     <AdminLayout>
-      <PageHeader title="Inbox" subtitle="Internal messaging" dark={isDark} className="mb-6" />
+      {/* Hide page header on mobile thread view — saves vertical space */}
+      <div className={cn(mobileView === 'thread' ? 'hidden md:block' : 'block')}>
+        <PageHeader title="Inbox" subtitle="Internal messaging" dark={isDark} className="mb-6" />
+      </div>
 
-      <div className="flex gap-4" style={{ height: 'calc(100vh - 220px)', minHeight: '500px' }}>
+      <div className="flex gap-4 md:gap-4" style={{ height: 'calc(100dvh - 200px)', minHeight: '400px' }}>
 
         {/* ── Left: conversation list ── */}
-        <div className={cn('w-72 shrink-0 flex flex-col rounded-2xl border overflow-hidden', panelCls)}>
+        <div className={cn(
+          'flex flex-col rounded-2xl border overflow-hidden',
+          'w-full md:w-72 md:shrink-0',
+          // Mobile: show list panel OR thread panel
+          mobileView === 'thread' ? 'hidden md:flex' : 'flex',
+          panelCls
+        )}>
 
           <div className={cn('flex items-center gap-2 px-3 py-3 border-b', dividerCls)}>
             <div className="relative flex-1">
@@ -190,7 +202,11 @@ export default function AdminInbox() {
         </div>
 
         {/* ── Right: message thread ── */}
-        <div className={cn('flex-1 flex flex-col rounded-2xl border overflow-hidden min-w-0', panelCls)}>
+        <div className={cn(
+          'flex-1 flex-col rounded-2xl border overflow-hidden min-w-0',
+          mobileView === 'list' ? 'hidden md:flex' : 'flex',
+          panelCls
+        )}>
 
           {!activeConv ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
@@ -200,11 +216,18 @@ export default function AdminInbox() {
             </div>
           ) : (
             <>
-              <div className={cn('flex items-center gap-3 px-5 py-3.5 border-b shrink-0', dividerCls)}>
+              <div className={cn('flex items-center gap-3 px-4 py-3.5 border-b shrink-0', dividerCls)}>
+                {/* Back button — mobile only */}
+                <button
+                  onClick={() => setMobileView('list')}
+                  className={cn('md:hidden shrink-0 p-1 rounded-lg', isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800')}
+                >
+                  <ArrowLeft size={18} />
+                </button>
                 <div className="h-8 w-8 rounded-full bg-brand-500/10 flex items-center justify-center text-xs font-bold text-brand-400 shrink-0">
                   {otherPersonName(activeConv, user?.id).charAt(0).toUpperCase()}
                 </div>
-                <p className={cn('text-sm font-semibold', textHead)}>
+                <p className={cn('text-sm font-semibold flex-1 min-w-0 truncate', textHead)}>
                   {otherPersonName(activeConv, user?.id)}
                 </p>
               </div>

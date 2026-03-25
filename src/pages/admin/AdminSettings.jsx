@@ -8,8 +8,7 @@ import {
   User, Bell, Monitor, BookOpen, Camera,
   Sun, Moon, ChevronDown, ChevronUp,
   Check, LayoutDashboard, FolderKanban, Users,
-  Wallet, BarChart3, ClipboardList, FolderOpen,
-  Image, Receipt, Calendar, Upload, DollarSign, FileText,
+  Wallet, BarChart3, ClipboardList, Upload,
 } from 'lucide-react'
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -217,7 +216,8 @@ function Toggle({ enabled, onToggle, isDark }) {
 
 // ── Tab: Profile ──────────────────────────────────────────────────────────────
 function ProfileTab({ user, isDark }) {
-  const updateUser = useAuthStore((s) => s.updateUser)
+  const saveProfile    = useAuthStore((s) => s.saveProfile)
+  const updatePassword = useAuthStore((s) => s.updatePassword)
 
   const [form, setForm] = useState({
     name:     user?.name     ?? '',
@@ -226,8 +226,11 @@ function ProfileTab({ user, isDark }) {
     phone:    user?.phone    ?? '',
   })
   const [avatar, setAvatar]     = useState(user?.avatar ?? null)
+  const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(false)
+  const [saveErr, setSaveErr]   = useState('')
   const [pwForm, setPwForm]     = useState({ current: '', next: '' })
+  const [pwSaving, setPwSaving] = useState(false)
   const [pwSaved, setPwSaved]   = useState(false)
   const [pwError, setPwError]   = useState('')
   const fileRef                 = useRef(null)
@@ -255,22 +258,24 @@ function ProfileTab({ user, isDark }) {
     reader.readAsDataURL(file)
   }
 
-  const handleSave = () => {
-    updateUser({ name: form.name, email: form.email, business: form.business, phone: form.phone, avatar })
+  const handleSave = async () => {
+    setSaving(true)
+    setSaveErr('')
+    const result = await saveProfile({ name: form.name, business: form.business, phone: form.phone, avatar })
+    setSaving(false)
+    if (!result.success) { setSaveErr(result.error ?? 'Failed to save.'); return }
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
 
-  const handlePasswordUpdate = () => {
+  const handlePasswordUpdate = async () => {
     setPwError('')
-    if (!pwForm.current || !pwForm.next) {
-      setPwError('Please fill in both fields.')
-      return
-    }
-    if (pwForm.next.length < 6) {
-      setPwError('New password must be at least 6 characters.')
-      return
-    }
+    if (!pwForm.next) { setPwError('Please enter a new password.'); return }
+    if (pwForm.next.length < 6) { setPwError('New password must be at least 6 characters.'); return }
+    setPwSaving(true)
+    const result = await updatePassword(pwForm.next)
+    setPwSaving(false)
+    if (!result.success) { setPwError(result.error ?? 'Failed to update password.'); return }
     setPwSaved(true)
     setPwForm({ current: '', next: '' })
     setTimeout(() => setPwSaved(false), 2500)
@@ -281,10 +286,10 @@ function ProfileTab({ user, isDark }) {
       <SettingCard isDark={isDark}>
         <SectionLabel isDark={isDark}>Account Info</SectionLabel>
 
-        <div className="flex items-center gap-4 mb-5">
+        <div className="flex items-start gap-4 mb-5">
           <div className="relative shrink-0">
             <div className={cn(
-              'h-14 w-14 rounded-full overflow-hidden flex items-center justify-center text-lg font-bold',
+              'h-16 w-16 rounded-full overflow-hidden flex items-center justify-center text-xl font-bold',
               isDark ? 'bg-admin-accent/20 text-admin-accent' : 'bg-brand-500/10 text-brand-500'
             )}>
               {avatar
@@ -302,26 +307,20 @@ function ProfileTab({ user, isDark }) {
             >
               <Camera size={11} />
             </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleAvatarChange}
-            />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </div>
-          <div>
-            <p className={cn('font-semibold text-sm', text)}>{form.name}</p>
-            <p className={cn('text-xs', subText)}>{form.email}</p>
+          <div className="min-w-0">
+            <p className={cn('font-semibold text-sm truncate', text)}>{form.name}</p>
+            <p className={cn('text-xs truncate', subText)}>{form.email}</p>
             <span className={cn(
-              'inline-block mt-1 text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded',
+              'inline-block mt-1.5 text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded',
               isDark ? 'bg-admin-accent/15 text-admin-accent' : 'bg-brand-500/10 text-brand-500'
             )}>
               Business Owner
             </span>
+            <p className={cn('text-[10px] mt-1.5', subText)}>Tap camera to change photo</p>
           </div>
         </div>
-        <p className={cn('text-[10px] -mt-3 mb-2', subText)}>Click the camera icon to upload a profile photo.</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -363,15 +362,12 @@ function ProfileTab({ user, isDark }) {
 
         <Divider isDark={isDark} />
 
-        <div className="flex items-center gap-3">
-          <button className={btnCls} onClick={handleSave}>
-            Save Changes
+        <div className="flex flex-wrap items-center gap-3">
+          <button className={cn(btnCls, saving && 'opacity-60 cursor-not-allowed')} onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : 'Save Changes'}
           </button>
-          {saved && (
-            <span className={cn('text-sm font-medium flex items-center gap-1.5', isDark ? 'text-admin-accent' : 'text-brand-500')}>
-              <Check size={14} /> Saved!
-            </span>
-          )}
+          {saved && <span className={cn('text-sm font-medium flex items-center gap-1.5', isDark ? 'text-admin-accent' : 'text-brand-500')}><Check size={14} /> Saved!</span>}
+          {saveErr && <span className="text-sm text-red-400">{saveErr}</span>}
         </div>
       </SettingCard>
 
@@ -380,36 +376,20 @@ function ProfileTab({ user, isDark }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={cn('block text-xs font-medium mb-1.5', subText)}>Current Password</label>
-            <input
-              className={inputCls}
-              type="password"
-              placeholder="••••••••"
-              value={pwForm.current}
-              onChange={(e) => setPwForm((f) => ({ ...f, current: e.target.value }))}
-            />
+            <input className={inputCls} type="password" placeholder="••••••••" value={pwForm.current} onChange={(e) => setPwForm((f) => ({ ...f, current: e.target.value }))} />
           </div>
           <div>
             <label className={cn('block text-xs font-medium mb-1.5', subText)}>New Password</label>
-            <input
-              className={inputCls}
-              type="password"
-              placeholder="••••••••"
-              value={pwForm.next}
-              onChange={(e) => setPwForm((f) => ({ ...f, next: e.target.value }))}
-            />
+            <input className={inputCls} type="password" placeholder="Min. 6 characters" value={pwForm.next} onChange={(e) => setPwForm((f) => ({ ...f, next: e.target.value }))} />
           </div>
         </div>
         {pwError && <p className="mt-2 text-xs text-red-400">{pwError}</p>}
         <Divider isDark={isDark} />
-        <div className="flex items-center gap-3">
-          <button className={btnCls} onClick={handlePasswordUpdate}>
-            Update Password
+        <div className="flex flex-wrap items-center gap-3">
+          <button className={cn(btnCls, pwSaving && 'opacity-60 cursor-not-allowed')} onClick={handlePasswordUpdate} disabled={pwSaving}>
+            {pwSaving ? 'Updating…' : 'Update Password'}
           </button>
-          {pwSaved && (
-            <span className={cn('text-sm font-medium flex items-center gap-1.5', isDark ? 'text-admin-accent' : 'text-brand-500')}>
-              <Check size={14} /> Updated!
-            </span>
-          )}
+          {pwSaved && <span className={cn('text-sm font-medium flex items-center gap-1.5', isDark ? 'text-admin-accent' : 'text-brand-500')}><Check size={14} /> Updated!</span>}
         </div>
       </SettingCard>
     </div>
@@ -654,9 +634,32 @@ export default function AdminSettings() {
         className="mb-6"
       />
 
+      {/* ── Mobile: horizontal scrollable tab pills ── */}
+      <div className={cn('flex md:hidden gap-2 overflow-x-auto no-scrollbar pb-1 mb-4')}>
+        {TABS.map((tab) => {
+          const Icon = tab.icon
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap shrink-0 transition-colors border',
+                isActive
+                  ? isDark ? 'bg-admin-accent/15 text-admin-accent border-admin-accent/30' : 'bg-brand-500/10 text-brand-500 border-brand-500/20'
+                  : isDark ? 'border-admin-border text-slate-400 hover:text-slate-200' : 'border-slate-200 text-slate-500 hover:text-slate-700'
+              )}
+            >
+              <Icon size={14} className="shrink-0" />
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── Desktop: sidebar + content side by side ── */}
       <div className="flex gap-6">
-        {/* ── Vertical tab sidebar ── */}
-        <nav className={cn('w-44 shrink-0 rounded-xl border overflow-hidden self-start', tabBg)}>
+        <nav className={cn('hidden md:block w-44 shrink-0 rounded-xl border overflow-hidden self-start', tabBg)}>
           <ul className="py-1.5">
             {TABS.map((tab) => {
               const Icon = tab.icon
@@ -679,17 +682,10 @@ export default function AdminSettings() {
           </ul>
         </nav>
 
-        {/* ── Tab content ── */}
         <div className="flex-1 min-w-0">
           {activeTab === 'profile'       && <ProfileTab       user={user} isDark={isDark} />}
           {activeTab === 'notifications' && <NotificationsTab isDark={isDark} />}
-          {activeTab === 'display'       && (
-            <DisplayTab
-              isDark={isDark}
-              adminTheme={adminTheme}
-              toggleAdminTheme={toggleAdminTheme}
-            />
-          )}
+          {activeTab === 'display'       && <DisplayTab isDark={isDark} adminTheme={adminTheme} toggleAdminTheme={toggleAdminTheme} />}
           {activeTab === 'guide'         && <AppGuideTab isDark={isDark} />}
         </div>
       </div>
