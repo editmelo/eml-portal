@@ -3,16 +3,13 @@ import AdminLayout from '../../components/layout/AdminLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import { DarkCard } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
-import Button from '../../components/ui/Button'
 import useProjectStore from '../../store/projectStore'
 import useThemeStore from '../../store/themeStore'
-import { MOCK_USERS } from '../../lib/mockData'
-import { ROLES } from '../../lib/constants'
 import { formatCurrency, formatDate } from '../../lib/utils'
-import { Wallet, Pencil, Check } from 'lucide-react'
+import { Pencil, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const designers = MOCK_USERS.filter((u) => u.role === ROLES.DESIGNER)
+const designers = []
 
 export default function AdminPayroll() {
   const isDark = useThemeStore((s) => s.adminTheme) === 'dark'

@@ -8,8 +8,6 @@ import InviteModal from '../../components/admin/InviteModal'
 import useProjectStore from '../../store/projectStore'
 import useThemeStore from '../../store/themeStore'
 import useInviteStore from '../../store/inviteStore'
-import { MOCK_USERS } from '../../lib/mockData'
-import { ROLES } from '../../lib/constants'
 import { formatDate } from '../../lib/utils'
 import { cn } from '../../lib/utils'
 import {
@@ -21,8 +19,8 @@ import {
 import toast from 'react-hot-toast'
 import { sendInviteEmail } from '../../lib/emailService'
 
-const CLIENTS   = MOCK_USERS.filter((u) => u.role === ROLES.CLIENT)
-const DESIGNERS = MOCK_USERS.filter((u) => u.role === ROLES.DESIGNER)
+const CLIENTS   = []
+const DESIGNERS = []
 
 function getProjects(userId, projects) {
   return projects.filter(

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { MOCK_INVOICES, MOCK_PAYROLL } from '../lib/mockData'
+import { MOCK_INVOICES } from '../lib/mockData'
 import { PROJECT_STATUS } from '../lib/constants'
 
 /**
@@ -19,7 +19,7 @@ const useProjectStore = create(
   projects:    [],
   leads:       [],
   invoices:    MOCK_INVOICES,
-  payroll:     MOCK_PAYROLL,
+  payroll:     [],
   intakeForms:    {},   // { [projectId]: formData }
   todos:          {},   // { [projectId]: [{ id, text, done, createdAt }] }        — client todos
   designerTodos:  {},   // { [designerId]: [{ id, text, done, isPriority, projectId?, createdAt }] }
@@ -29,7 +29,7 @@ const useProjectStore = create(
   adminTodos:      [],   // [{ id, text, done, isPriority, createdAt }]             — admin personal to-do list
   projectBriefs:   {},   // { [projectId]: { ...generated brief data, createdAt } } — auto-generated from intake form
   folders:         [],   // [{ id, name, ownerId, ownerRole, ownerName, context, contextId, clientVisible, createdAt, files[] }]
-  financials:      { monthlyRevenue: 0, ytdRevenue: 0, goalMonthly: 5000, goalYearly: 60000 },
+  financials:      { monthlyRevenue: 0, monthlyExpenses: 0, ytdRevenue: 0, ytdExpenses: 0, goalMonthly: 5000, goalYearly: 60000, monthlyBreakdown: [] },
   isLoading:       false,
 
   // ── Project Actions ────────────────────────────────────────────────────────
@@ -451,12 +451,12 @@ const useProjectStore = create(
   }),
     {
       name: 'eml_project_store',
-      version: 2,
+      version: 3,
       migrate: (_persistedState, _fromVersion) => ({
         projects:         [],
         leads:            [],
         invoices:         MOCK_INVOICES,
-        payroll:          MOCK_PAYROLL,
+        payroll:          [],
         intakeForms:      {},
         todos:            {},
         designerTodos:    {},
@@ -466,7 +466,7 @@ const useProjectStore = create(
         adminTodos:       [],
         projectBriefs:    {},
         folders:          [],
-        financials:       { monthlyRevenue: 0, ytdRevenue: 0, goalMonthly: 5000, goalYearly: 60000 },
+        financials:       { monthlyRevenue: 0, monthlyExpenses: 0, ytdRevenue: 0, ytdExpenses: 0, goalMonthly: 5000, goalYearly: 60000, monthlyBreakdown: [] },
       }),
       partialize: (state) => ({
         projects:        state.projects,

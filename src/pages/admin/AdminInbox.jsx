@@ -4,7 +4,6 @@ import PageHeader from '../../components/layout/PageHeader'
 import useAuthStore, { selectUser } from '../../store/authStore'
 import useMessagingStore from '../../store/messagingStore'
 import useThemeStore from '../../store/themeStore'
-import { MOCK_USERS } from '../../lib/mockData'
 import { cn } from '../../lib/utils'
 import { Mail, Send, Search, X, Plus, MessageSquare } from 'lucide-react'
 import { sendNotification } from '../../lib/emailService'
@@ -25,7 +24,6 @@ function convUnread(conv, userId, messages, lastRead) {
 export default function AdminInbox() {
   const isDark    = useThemeStore((s) => s.adminTheme) === 'dark'
   const user      = useAuthStore(selectUser)
-  const regUsers  = useAuthStore((s) => s.registeredUsers)
 
   const allConvs   = useMessagingStore((s) => s.conversations)
   const messages   = useMessagingStore((s) => s.messages)
@@ -49,14 +47,8 @@ export default function AdminInbox() {
     [allConvs, user?.id]
   )
 
-  // Admin can message everyone except themselves
-  const allContacts = useMemo(() =>
-    [...MOCK_USERS, ...regUsers].reduce((acc, u) => {
-      if (!acc.find((a) => a.id === u.id) && u.id !== user?.id) acc.push(u)
-      return acc
-    }, []),
-    [regUsers, user?.id]
-  )
+  // Contacts list — populated from real users once Supabase user management is wired up
+  const allContacts = useMemo(() => [], [user?.id])
 
   const activeConv     = conversations.find((c) => c.id === activeConvId)
   const activeMessages = activeConvId ? (messages[activeConvId] ?? []) : []
