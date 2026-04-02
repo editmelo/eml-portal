@@ -8,7 +8,7 @@ import useProjectStore from '../../store/projectStore'
 import { formatDate } from '../../lib/utils'
 import {
   FileText, Image as ImageIcon, File, Eye, StickyNote,
-  X, Send, ChevronDown, ChevronUp, Download,
+  X, Send, ChevronDown, ChevronUp, Download, Globe, ExternalLink,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -182,53 +182,90 @@ export default function ClientDrafts() {
       )}
 
       <div className="space-y-4">
-        {drafts.map((draft) => (
-          <Card key={draft.id} className="overflow-hidden">
-            {/* File row */}
-            <div className="flex items-center gap-4 px-5 py-4">
-              <div className="h-10 w-10 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
-                {fileIcon(draft.url)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800 truncate">{draft.label}</p>
-                <p className="text-xs text-slate-400 mt-0.5">Uploaded {formatDate(draft.uploadedAt)}</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={<Eye size={14} />}
-                  onClick={() => setPreview(draft)}
-                >
-                  Open
-                </Button>
-              </div>
-            </div>
-
-            {/* Preview thumbnail for images */}
-            {isImage(draft.url) && (
-              <div
-                className="mx-5 mb-4 rounded-xl overflow-hidden border border-slate-100 cursor-pointer group relative"
-                onClick={() => setPreview(draft)}
-              >
-                <img
-                  src={draft.url}
-                  alt={draft.label}
-                  className="w-full max-h-72 object-cover group-hover:opacity-90 transition-opacity"
-                  draggable={false}
-                />
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-xl">
-                  <span className="bg-white text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg shadow">
-                    Click to open full view
-                  </span>
+        {drafts.map((draft) => {
+          const isWebsite = draft.draftType === 'website'
+          return (
+            <Card key={draft.id} className="overflow-hidden">
+              {/* File row */}
+              <div className="flex items-center gap-4 px-5 py-4">
+                <div className="h-10 w-10 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-600 flex items-center justify-center shrink-0">
+                  {isWebsite ? <Globe size={18} className="text-blue-500" /> : fileIcon(draft.url)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{draft.label}</p>
+                    <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                      isWebsite ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' : 'bg-violet-100 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400'
+                    }`}>
+                      {isWebsite ? 'Website' : 'Brand Identity'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {isWebsite ? 'Shared' : 'Uploaded'} {formatDate(draft.uploadedAt)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {isWebsite ? (
+                    <a
+                      href={draft.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors"
+                    >
+                      <ExternalLink size={14} /> View Site
+                    </a>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<Eye size={14} />}
+                      onClick={() => setPreview(draft)}
+                    >
+                      Open
+                    </Button>
+                  )}
                 </div>
               </div>
-            )}
 
-            {/* Notes panel */}
-            <NotesPanel draft={draft} projectId={project.id} user={user} />
-          </Card>
-        ))}
+              {/* Website link display */}
+              {isWebsite && (
+                <div className="mx-5 mb-4 rounded-xl border border-blue-100 dark:border-blue-500/20 bg-blue-50 dark:bg-blue-500/5 p-4">
+                  <a
+                    href={draft.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline break-all"
+                  >
+                    {draft.url}
+                  </a>
+                </div>
+              )}
+
+              {/* Preview thumbnail for images */}
+              {!isWebsite && isImage(draft.url) && (
+                <div
+                  className="mx-5 mb-4 rounded-xl overflow-hidden border border-slate-100 cursor-pointer group relative"
+                  onClick={() => setPreview(draft)}
+                >
+                  <img
+                    src={draft.url}
+                    alt={draft.label}
+                    className="w-full max-h-72 object-cover group-hover:opacity-90 transition-opacity"
+                    draggable={false}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-xl">
+                    <span className="bg-white text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg shadow">
+                      Click to open full view
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Notes panel */}
+              <NotesPanel draft={draft} projectId={project.id} user={user} />
+            </Card>
+          )
+        })}
       </div>
     </PortalLayout>
   )

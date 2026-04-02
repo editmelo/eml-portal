@@ -10,7 +10,8 @@ import useProjectStore from '../../store/projectStore'
 import useThemeStore from '../../store/themeStore'
 import useQuoteStore from '../../store/quoteStore'
 import { formatCurrency, formatDate } from '../../lib/utils'
-import { TrendingUp, DollarSign, FolderKanban, Users, Pencil, Plus, Check, X } from 'lucide-react'
+import { TrendingUp, DollarSign, FolderKanban, Users, Pencil, Plus, Check, X, Activity } from 'lucide-react'
+import ActivityFeed from '../../components/ui/ActivityFeed'
 
 // ── Inline edit modal for revenue cards ──────────────────────────────────────
 function RevenueEditModal({ label, fields, values, onSave, onClose }) {
@@ -239,6 +240,17 @@ export default function AdminDashboard() {
               )}
             </tbody>
           </table>
+        </div>
+      </DarkCard>
+
+      {/* Activity Feed */}
+      <DarkCard className="mt-8">
+        <div className="px-6 py-4 border-b border-admin-border flex items-center gap-2">
+          <Activity size={14} className="text-brand-400" />
+          <h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-800'}`}>Recent Activity</h2>
+        </div>
+        <div className="px-3 py-2 max-h-80 overflow-y-auto no-scrollbar">
+          <ActivityFeed isDark={isDark} limit={25} />
         </div>
       </DarkCard>
 

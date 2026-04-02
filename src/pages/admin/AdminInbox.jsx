@@ -7,6 +7,7 @@ import useThemeStore from '../../store/themeStore'
 import { cn } from '../../lib/utils'
 import { Mail, Send, Search, X, Plus, MessageSquare, ArrowLeft } from 'lucide-react'
 import { sendNotification } from '../../lib/emailService'
+import { logActivity } from '../../store/activityStore'
 import { supabase } from '../../lib/supabase'
 
 function otherPersonName(conv, userId) {
@@ -105,6 +106,13 @@ export default function AdminInbox() {
         })
       }
     }
+    logActivity({
+      actorId:     user?.id,
+      actorName:   user?.name ?? 'Admin',
+      actorRole:   user?.role ?? 'ADMIN',
+      action:      'message_sent',
+      description: `sent a message to ${otherPersonName(activeConv, user?.id)}`,
+    })
     setNewMsg('')
     inputRef.current?.focus()
   }

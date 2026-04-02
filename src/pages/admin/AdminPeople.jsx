@@ -548,7 +548,7 @@ function PendingInvites({ isDark }) {
               <button
                 onClick={async () => {
                   resendInvite(inv.id)
-                  await sendInviteEmail({ role: inv.role, ownerName: inv.ownerName, email: inv.email, companyName: inv.companyName, message: inv.message })
+                  await sendInviteEmail({ role: inv.role, ownerName: inv.ownerName, email: inv.email, companyName: inv.companyName, message: inv.message, inviteId: inv.id })
                 }}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-admin-border text-[11px] text-slate-400 hover:text-brand-400 hover:border-brand-400/50 transition-colors"
               >

@@ -68,16 +68,18 @@ export const INVITE_TEMPLATES = {
 }
 
 // ── Send invite email ─────────────────────────────────────────────────────────
-export async function sendInviteEmail({ role, ownerName, email, companyName, message }) {
+export async function sendInviteEmail({ role, ownerName, email, companyName, message, inviteId }) {
   const subject = role === 'DESIGNER'
     ? "You're invited to join Edit Me Lo as a Designer"
     : "You're invited to the Edit Me Lo Client Portal"
 
-  const signupUrl = `${window.location.origin}/signup`
+  const signupUrl = inviteId
+    ? `${window.location.origin}/signup?invite=${inviteId}`
+    : `${window.location.origin}/signup`
 
-  // Embed the link as HTML so it renders as a clickable anchor in Make's HTML email
+  // Single styled button — no raw URL or duplicates
   const fullMessage = message.replace(/\n/g, '<br>') +
-    `<br><br><a href="${signupUrl}" style="display:inline-block;padding:10px 20px;background:#3b82f6;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Create Your Account →</a><br><br>${signupUrl}`
+    `<br><br><a href="${signupUrl}" style="display:inline-block;padding:12px 24px;background:#124F9E;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">Create Your Account &rarr;</a>`
 
   await _send({
     to_name:    ownerName,
@@ -86,7 +88,6 @@ export async function sendInviteEmail({ role, ownerName, email, companyName, mes
     company:    companyName,
     role:       role === 'DESIGNER' ? 'Designer' : 'Client',
     message:    fullMessage,
-    portal_url: signupUrl,
   })
 
   toast.success(`Invite sent to ${email}`, {

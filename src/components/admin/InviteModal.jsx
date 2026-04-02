@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { X, ChevronDown, ChevronUp, Send, UserPlus, Palette } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import useInviteStore from '../../store/inviteStore'
+import useAuthStore, { selectUser } from '../../store/authStore'
+import { logActivity } from '../../store/activityStore'
 import { sendInviteEmail, INVITE_TEMPLATES } from '../../lib/emailService'
 import toast from 'react-hot-toast'
 
@@ -22,6 +24,7 @@ const TEMPLATE_LABELS = {
 
 export default function InviteModal({ onClose, isDark, defaultRole = 'CLIENT' }) {
   const addInvite = useInviteStore((s) => s.addInvite)
+  const user = useAuthStore(selectUser)
 
   const [role,        setRole]        = useState(defaultRole) // 'CLIENT' | 'DESIGNER'
   const [companyName, setCompanyName] = useState('')
@@ -66,8 +69,15 @@ export default function InviteModal({ onClose, isDark, defaultRole = 'CLIENT' })
 
     setSending(true)
     try {
-      await addInvite({ role, companyName, ownerName, email, displayName, jobTitle, phone, location, foundUs, message })
-      await sendInviteEmail({ role, ownerName, email, companyName, message })
+      const invite = await addInvite({ role, companyName, ownerName, email, displayName, jobTitle, phone, location, foundUs, message })
+      await sendInviteEmail({ role, ownerName, email, companyName, message, inviteId: invite.id })
+      logActivity({
+        actorId:     user?.id,
+        actorName:   user?.name ?? 'Admin',
+        actorRole:   user?.role ?? 'ADMIN',
+        action:      'invite_sent',
+        description: `sent a ${role === 'DESIGNER' ? 'designer' : 'client'} invite to ${ownerName} (${email})`,
+      })
       onClose()
     } finally {
       setSending(false)

@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import useAuthStore, { selectIsAuthenticated, selectRole } from '../../store/authStore'
+import useAuthStore, { selectIsAuthenticated, selectRole, selectUser } from '../../store/authStore'
 import { ROLE_HOME } from '../../routes/ProtectedRoute'
+import { supabase } from '../../lib/supabase'
 import LoadingScreen from '../../components/ui/LoadingScreen'
 
 /**
@@ -14,12 +15,21 @@ export default function AuthCallback() {
   const navigate        = useNavigate()
   const isAuthenticated = useAuthStore(selectIsAuthenticated)
   const role            = useAuthStore(selectRole)
+  const user            = useAuthStore(selectUser)
 
   useEffect(() => {
-    if (isAuthenticated && role) {
-      navigate(ROLE_HOME[role] ?? '/client', { replace: true })
+    if (isAuthenticated && role && user) {
+      // Ensure profiles row exists for OAuth users
+      supabase.from('profiles').upsert({
+        id:    user.id,
+        email: user.email,
+        name:  user.name,
+        role:  user.role,
+      }).then(() => {
+        navigate(ROLE_HOME[role] ?? '/client', { replace: true })
+      })
     }
-  }, [isAuthenticated, role])
+  }, [isAuthenticated, role, user])
 
   return <LoadingScreen />
 }

@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { Eye, EyeOff, UserPlus } from 'lucide-react'
 import useAuthStore, { selectIsAuthenticated, selectRole } from '../../store/authStore'
 import { ROLE_HOME } from '../../routes/ProtectedRoute'
 import { BackgroundBeamsWithCollision } from '../../components/ui/BackgroundBeams'
 import { Spotlight, GridBackground } from '../../components/ui/Spotlight'
 import { cn } from '../../lib/utils'
+import { supabase } from '../../lib/supabase'
+import { logActivity } from '../../store/activityStore'
 import toast from 'react-hot-toast'
 
 
 export default function SignupPage() {
   const navigate        = useNavigate()
+  const [searchParams]  = useSearchParams()
   const register   = useAuthStore((s) => s.register)
   const clearError = useAuthStore((s) => s.clearError)
   const isLoading       = useAuthStore((s) => s.isLoading)
@@ -26,6 +29,27 @@ export default function SignupPage() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [fieldError,  setFieldError]  = useState('')
   const [confirmed,   setConfirmed]   = useState(false)
+
+  // Invite-aware signup: look up the invite to get the correct role
+  const [inviteRole,  setInviteRole]  = useState(null)   // null = still loading or no invite
+  const [inviteReady, setInviteReady] = useState(false)
+  const inviteId = searchParams.get('invite')
+
+  useEffect(() => {
+    if (!inviteId) { setInviteReady(true); return }
+    supabase.from('invites').select('role, email, owner_name').eq('id', inviteId).single()
+      .then(({ data }) => {
+        if (data) {
+          setInviteRole(data.role)          // 'CLIENT' | 'DESIGNER'
+          if (data.email)      setEmail(data.email)
+          if (data.owner_name) setName(data.owner_name)
+        }
+        setInviteReady(true)
+      })
+  }, [inviteId])
+
+  const signupRole = inviteRole ?? 'CLIENT'
+  const isDesigner = signupRole === 'DESIGNER'
 
   // Redirect if already logged in
   useEffect(() => {
@@ -43,12 +67,27 @@ export default function SignupPage() {
     if (password.length < 6) { setFieldError('Password must be at least 6 characters.'); return }
     if (password !== confirm) { setFieldError('Passwords do not match.'); return }
 
-    const result = await register(name, email, password)
+    const result = await register(name, email, password, signupRole)
     if (result.success) {
+      // Mark the invite as accepted
+      if (inviteId) {
+        supabase.from('invites').update({ status: 'accepted' }).eq('id', inviteId)
+          .then(({ error: iErr }) => { if (iErr) console.error('[signup] invite status update:', iErr.message) })
+      }
       if (result.needsConfirmation) {
         setConfirmed(true)
         return
       }
+      // Log the signup / invite acceptance
+      logActivity({
+        actorId:     'system',
+        actorName:   name,
+        actorRole:   signupRole,
+        action:      inviteId ? 'invite_accepted' : 'profile_updated',
+        description: inviteId
+          ? `accepted their ${signupRole === 'DESIGNER' ? 'designer' : 'client'} invite and created an account`
+          : 'created a new client account',
+      })
       toast.success('Welcome! Your account has been created.')
       navigate(ROLE_HOME[result.role] ?? '/client', { replace: true })
     }
@@ -97,8 +136,12 @@ export default function SignupPage() {
             />
           </a>
           <div className="text-center">
-            <h1 className="text-xl font-bold text-white tracking-tight">Create your client account</h1>
-            <p className="text-sm text-slate-400 mt-0.5">Sign up to access your Edit Me Lo client portal</p>
+            <h1 className="text-xl font-bold text-white tracking-tight">
+              {isDesigner ? 'Create your designer account' : 'Create your client account'}
+            </h1>
+            <p className="text-sm text-slate-400 mt-0.5">
+              {isDesigner ? 'Sign up to access your Edit Me Lo designer portal' : 'Sign up to access your Edit Me Lo client portal'}
+            </p>
           </div>
         </div>
 
@@ -240,12 +283,14 @@ export default function SignupPage() {
             </Link>
           </p>
 
-          <p className="mt-3 text-center text-[11px] text-slate-600">
-            Designers join by invite only.{' '}
-            <a href="https://www.editmelo.com" target="_blank" rel="noopener noreferrer" className="text-[#47C9F3]/70 hover:text-[#47C9F3] transition-colors">
-              Learn more →
-            </a>
-          </p>
+          {!isDesigner && (
+            <p className="mt-3 text-center text-[11px] text-slate-600">
+              Designers join by invite only.{' '}
+              <a href="https://www.editmelo.com" target="_blank" rel="noopener noreferrer" className="text-[#47C9F3]/70 hover:text-[#47C9F3] transition-colors">
+                Learn more →
+              </a>
+            </p>
+          )}
         </div>
 
         <div className="mt-8 flex flex-col items-center gap-2">

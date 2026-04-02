@@ -38,7 +38,18 @@ const useAuthStore = create((set, get) => ({
     if (session?.user) {
       // getUser() fetches server-fresh metadata — avoids stale JWT cache on other devices
       const { data: { user: freshUser } } = await supabase.auth.getUser()
-      set({ user: shapeUser(freshUser ?? session.user), isAuthenticated: true, isLoading: false })
+      const resolved = freshUser ?? session.user
+      const shaped = shapeUser(resolved)
+      set({ user: shaped, isAuthenticated: true, isLoading: false })
+      // Ensure profiles row exists (back-fills users who signed up before profiles sync)
+      supabase.from('profiles').upsert({
+        id:    resolved.id,
+        email: resolved.email,
+        name:  shaped.name,
+        role:  shaped.role,
+      }).then(({ error: pErr }) => {
+        if (pErr) console.error('[authStore] profiles upsert on init:', pErr.message)
+      })
     } else {
       set({ isLoading: false })
     }
@@ -65,6 +76,17 @@ const useAuthStore = create((set, get) => ({
     }
     const user = shapeUser(data.user)
     set({ user, isAuthenticated: true, isLoading: false, error: null })
+    // Ensure profiles row exists (back-fills users who signed up before this fix)
+    if (data.user) {
+      supabase.from('profiles').upsert({
+        id:    data.user.id,
+        email: data.user.email,
+        name:  user.name,
+        role:  user.role,
+      }).then(({ error: pErr }) => {
+        if (pErr) console.error('[authStore] profiles upsert on login:', pErr.message)
+      })
+    }
     return { success: true, role: user.role }
   },
 
@@ -85,19 +107,34 @@ const useAuthStore = create((set, get) => ({
   },
 
   /**
-   * Register a new CLIENT account.
+   * Register a new account.
+   * @param {string} name
+   * @param {string} email
+   * @param {string} password
+   * @param {string} [role='CLIENT'] — passed from invite lookup or defaults to CLIENT
    * Returns { success, role?, needsConfirmation?, error? }
    */
-  register: async (name, email, password) => {
+  register: async (name, email, password, role = 'CLIENT') => {
     set({ isLoading: true, error: null })
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name, role: 'CLIENT' } },
+      options: { data: { name, role } },
     })
     if (error) {
       set({ isLoading: false, error: error.message })
       return { success: false, error: error.message }
+    }
+    // Create profiles row so AdminPeople + Inbox contacts can find this user
+    if (data.user) {
+      await supabase.from('profiles').upsert({
+        id:    data.user.id,
+        email: data.user.email,
+        name,
+        role,
+      }).then(({ error: pErr }) => {
+        if (pErr) console.error('[authStore] profiles upsert on register:', pErr.message)
+      })
     }
     // If email confirmation is enabled, session is null until they click the link
     if (!data.session) {
