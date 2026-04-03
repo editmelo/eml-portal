@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import PortalLayout from '../../components/layout/PortalLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import useAuthStore, { selectUser } from '../../store/authStore'
+import useProjectStore from '../../store/projectStore'
 import useMessagingStore from '../../store/messagingStore'
 import { cn } from '../../lib/utils'
 import { Mail, Send, Search, X, Plus, MessageSquare, ArrowLeft } from 'lucide-react'
@@ -48,14 +49,32 @@ export default function ClientInbox() {
     [allConvs, user?.id]
   )
 
+  const projects = useProjectStore((s) => s.projects)
+
+  // Collect designer IDs assigned to any of this client's projects
+  const assignedDesignerIds = useMemo(() => {
+    const ids = new Set()
+    projects.forEach((p) => {
+      if (p.clientId === user?.id || p.id === user?.projectId) {
+        (p.designerIds ?? []).forEach((d) => ids.add(d))
+      }
+    })
+    return ids
+  }, [projects, user?.id, user?.projectId])
+
   const [allContacts, setAllContacts] = useState([])
   useEffect(() => {
     if (!user?.id) return
     supabase.from('profiles').select('id, name, email, role').neq('id', user.id)
       .then(({ data }) => {
-        if (data) setAllContacts(data.map((p) => ({ id: p.id, name: p.name ?? p.email, role: p.role })))
+        if (!data) return
+        // Only show admins (Lo) + designers assigned to this client's projects
+        const filtered = data.filter((p) =>
+          p.role === 'ADMIN' || (p.role === 'DESIGNER' && assignedDesignerIds.has(p.id))
+        )
+        setAllContacts(filtered.map((p) => ({ id: p.id, name: p.name ?? p.email, role: p.role })))
       })
-  }, [user?.id])
+  }, [user?.id, assignedDesignerIds])
 
   const activeConv     = conversations.find((c) => c.id === activeConvId)
   const activeMessages = activeConvId ? (messages[activeConvId] ?? []) : []
