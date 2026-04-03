@@ -106,3 +106,86 @@ ON CONFLICT (id) DO UPDATE SET
 --
 --    After this, when Bryant logs in again his role will be DESIGNER and he'll
 --    see the designer portal. The init() function will also sync his profiles row.
+
+
+-- ============================================================================
+-- 5. QUICKBOOKS INTEGRATION TABLES
+-- ============================================================================
+
+-- 5a. QB OAuth tokens — stores the connected QuickBooks account credentials.
+-- Only one row should exist (Lo's business QB account).
+CREATE TABLE IF NOT EXISTS qb_tokens (
+  id                       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  realm_id                 text NOT NULL UNIQUE,
+  access_token             text NOT NULL,
+  refresh_token            text NOT NULL,
+  access_token_expires_at  timestamptz NOT NULL,
+  refresh_token_expires_at timestamptz NOT NULL,
+  company_name             text,
+  created_at               timestamptz DEFAULT now(),
+  updated_at               timestamptz DEFAULT now()
+);
+
+ALTER TABLE qb_tokens ENABLE ROW LEVEL SECURITY;
+
+-- Only service role can read/write tokens (edge functions use service role key)
+DROP POLICY IF EXISTS "Service role manages QB tokens" ON qb_tokens;
+CREATE POLICY "Service role manages QB tokens"
+  ON qb_tokens FOR ALL
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
+
+
+-- 5b. INVOICES TABLE — replaces frontend-only Zustand storage.
+-- Source of truth for all invoices. Syncs bidirectionally with QuickBooks.
+CREATE TABLE IF NOT EXISTS invoices (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id      text,
+  client_id       uuid REFERENCES profiles(id),
+  client_name     text,
+  client_email    text,
+  description     text NOT NULL,
+  line_items      jsonb DEFAULT '[]',
+  amount          numeric(10,2) NOT NULL,
+  status          text NOT NULL DEFAULT 'Draft',
+  issued_at       date,
+  due_date        date,
+  paid_at         date,
+  qb_invoice_id   text,
+  qb_customer_id  text,
+  payment_link    text,
+  created_at      timestamptz DEFAULT now(),
+  updated_at      timestamptz DEFAULT now()
+);
+
+ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
+
+-- Admins (Lo) can do everything with invoices
+DROP POLICY IF EXISTS "Admins can manage all invoices" ON invoices;
+CREATE POLICY "Admins can manage all invoices"
+  ON invoices FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'ADMIN'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'ADMIN'
+    )
+  );
+
+-- Clients can only view their own invoices
+DROP POLICY IF EXISTS "Clients can view own invoices" ON invoices;
+CREATE POLICY "Clients can view own invoices"
+  ON invoices FOR SELECT
+  TO authenticated
+  USING (client_id = auth.uid());
+
+-- Service role can do everything (for edge functions / webhooks)
+DROP POLICY IF EXISTS "Service role manages invoices" ON invoices;
+CREATE POLICY "Service role manages invoices"
+  ON invoices FOR ALL
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');

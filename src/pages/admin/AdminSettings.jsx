@@ -9,11 +9,16 @@ import {
   Sun, Moon, ChevronDown, ChevronUp,
   Check, LayoutDashboard, FolderKanban, Users,
   Wallet, BarChart3, ClipboardList, Upload,
+  Plug, ExternalLink, Loader2, Unplug,
 } from 'lucide-react'
+
+import { connectQuickBooks, getQBConnectionStatus, disconnectQuickBooks } from '../../lib/quickbooks'
+import toast from 'react-hot-toast'
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = [
   { id: 'profile',       label: 'Profile',       icon: User },
+  { id: 'integrations',  label: 'Integrations',  icon: Plug },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'display',       label: 'Display',       icon: Monitor },
   { id: 'guide',         label: 'App Guide',     icon: BookOpen },
@@ -436,6 +441,183 @@ function ProfileTab({ user, isDark }) {
   )
 }
 
+// ── Tab: Integrations ────────────────────────────────────────────────────────
+function IntegrationsTab({ isDark }) {
+  const [qbStatus, setQbStatus]     = useState(null)
+  const [loading, setLoading]       = useState(true)
+  const [connecting, setConnecting] = useState(false)
+
+  const text    = isDark ? 'text-white'     : 'text-slate-800'
+  const subText = isDark ? 'text-slate-400' : 'text-slate-500'
+  const btnCls  = cn(
+    'px-4 py-2 rounded-lg text-sm font-semibold transition-colors',
+    isDark
+      ? 'bg-admin-accent text-admin-bg hover:bg-[#3ab8e0]'
+      : 'bg-brand-500 text-white hover:bg-brand-600'
+  )
+
+  // Check for OAuth callback result in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const qbResult = params.get('qb')
+    if (qbResult === 'connected') {
+      toast.success('QuickBooks connected successfully!')
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (qbResult === 'error') {
+      toast.error('Failed to connect QuickBooks. Please try again.')
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
+  useEffect(() => {
+    getQBConnectionStatus()
+      .then(setQbStatus)
+      .catch(() => setQbStatus({ connected: false }))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleConnect = async () => {
+    setConnecting(true)
+    try {
+      await connectQuickBooks()
+    } catch {
+      toast.error('Failed to start QuickBooks connection')
+      setConnecting(false)
+    }
+  }
+
+  const handleDisconnect = async () => {
+    try {
+      await disconnectQuickBooks()
+      setQbStatus({ connected: false })
+      toast.success('QuickBooks disconnected')
+    } catch {
+      toast.error('Failed to disconnect')
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <SettingCard isDark={isDark}>
+        <SectionLabel isDark={isDark}>QuickBooks Online</SectionLabel>
+        <p className={cn('text-sm mb-5', subText)}>
+          Connect your QuickBooks account to create invoices, sync payment statuses, and give clients a direct link to pay.
+        </p>
+
+        {loading ? (
+          <div className="flex items-center gap-2 py-4">
+            <Loader2 size={16} className={cn('animate-spin', subText)} />
+            <span className={cn('text-sm', subText)}>Checking connection...</span>
+          </div>
+        ) : qbStatus?.connected ? (
+          <div className="space-y-4">
+            <div className={cn(
+              'flex items-center justify-between p-4 rounded-xl border',
+              isDark ? 'bg-emerald-900/20 border-emerald-800/40' : 'bg-emerald-50 border-emerald-200'
+            )}>
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  'h-10 w-10 rounded-lg flex items-center justify-center',
+                  isDark ? 'bg-emerald-900/40' : 'bg-emerald-100'
+                )}>
+                  <Check size={18} className="text-emerald-500" />
+                </div>
+                <div>
+                  <p className={cn('text-sm font-semibold', isDark ? 'text-emerald-300' : 'text-emerald-800')}>
+                    Connected to QuickBooks
+                  </p>
+                  <p className={cn('text-xs', isDark ? 'text-emerald-400/70' : 'text-emerald-600')}>
+                    Company ID: {qbStatus.realmId}
+                    {qbStatus.companyName ? ` · ${qbStatus.companyName}` : ''}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleDisconnect}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                  isDark
+                    ? 'text-red-400 hover:bg-red-900/30 border border-red-800/40'
+                    : 'text-red-600 hover:bg-red-50 border border-red-200'
+                )}
+              >
+                <Unplug size={12} />
+                Disconnect
+              </button>
+            </div>
+
+            <p className={cn('text-xs', subText)}>
+              Invoices you create will automatically sync to QuickBooks. Payment links will be generated so clients can pay directly.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className={cn(
+              'p-4 rounded-xl border',
+              isDark ? 'bg-admin-bg border-admin-border' : 'bg-slate-50 border-slate-200'
+            )}>
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  'h-10 w-10 rounded-lg flex items-center justify-center shrink-0',
+                  isDark ? 'bg-admin-accent/15' : 'bg-brand-500/10'
+                )}>
+                  <img src="https://quickbooks.intuit.com/cas/dam/IMAGE/A4FkQXJN6/quickbooks-logo-icon.svg" alt="QB" className="h-5 w-5" onError={(e) => { e.target.style.display = 'none' }} />
+                </div>
+                <div>
+                  <p className={cn('text-sm font-semibold mb-1', text)}>Not connected</p>
+                  <p className={cn('text-xs leading-relaxed', subText)}>
+                    Connect your QuickBooks Online account to enable invoice creation, automatic payment tracking, and client payment links.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleConnect}
+              disabled={connecting}
+              className={cn(btnCls, 'flex items-center gap-2', connecting && 'opacity-60 cursor-not-allowed')}
+            >
+              {connecting ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <ExternalLink size={14} />
+              )}
+              {connecting ? 'Connecting...' : 'Connect QuickBooks'}
+            </button>
+          </div>
+        )}
+      </SettingCard>
+
+      <SettingCard isDark={isDark}>
+        <SectionLabel isDark={isDark}>Other Integrations</SectionLabel>
+        <div className="space-y-3">
+          {[
+            { name: 'DocuSign / HelloSign', desc: 'Digital signatures for agreements', status: 'Coming soon' },
+            { name: 'Zoom', desc: 'Meeting notes and recordings', status: 'Coming soon' },
+            { name: 'Calendly', desc: 'Scheduling integration', status: 'Coming soon' },
+          ].map((item) => (
+            <div key={item.name} className={cn(
+              'flex items-center justify-between p-3 rounded-lg border',
+              isDark ? 'border-admin-border' : 'border-slate-100'
+            )}>
+              <div>
+                <p className={cn('text-sm font-medium', text)}>{item.name}</p>
+                <p className={cn('text-xs', subText)}>{item.desc}</p>
+              </div>
+              <span className={cn(
+                'text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded',
+                isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400'
+              )}>
+                {item.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      </SettingCard>
+    </div>
+  )
+}
+
 // ── Tab: Notifications ────────────────────────────────────────────────────────
 const NOTIF_GROUPS = [
   {
@@ -724,6 +906,7 @@ export default function AdminSettings() {
 
         <div className="flex-1 min-w-0">
           {activeTab === 'profile'       && <ProfileTab       user={user} isDark={isDark} />}
+          {activeTab === 'integrations'  && <IntegrationsTab  isDark={isDark} />}
           {activeTab === 'notifications' && <NotificationsTab isDark={isDark} />}
           {activeTab === 'display'       && <DisplayTab isDark={isDark} adminTheme={adminTheme} toggleAdminTheme={toggleAdminTheme} />}
           {activeTab === 'guide'         && <AppGuideTab isDark={isDark} />}

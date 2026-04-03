@@ -74,6 +74,7 @@ export const NAV_CONFIG = {
     { label: 'To-Do',           path: '/admin/todo',         icon: 'ListChecks' },
     { label: 'Lead Management', path: '/admin/leads',        icon: 'Users' },
     { label: 'Designer Payroll',path: '/admin/payroll',      icon: 'Wallet' },
+    { label: 'Invoices',        path: '/admin/invoices',     icon: 'Receipt' },
     { label: 'Financials',      path: '/admin/financials',   icon: 'BarChart3' },
     { label: 'Agreements',      path: '/admin/agreements',   icon: 'ScrollText' },
   ],

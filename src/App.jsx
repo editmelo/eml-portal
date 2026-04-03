@@ -18,6 +18,7 @@ const AdminTodo         = lazy(() => import('./pages/admin/AdminTodo'))
 const AdminLeads        = lazy(() => import('./pages/admin/AdminLeads'))
 const AdminPayroll      = lazy(() => import('./pages/admin/AdminPayroll'))
 const AdminFinancials   = lazy(() => import('./pages/admin/AdminFinancials'))
+const AdminInvoices     = lazy(() => import('./pages/admin/AdminInvoices'))
 const AdminSettings     = lazy(() => import('./pages/admin/AdminSettings'))
 const AdminInbox        = lazy(() => import('./pages/admin/AdminInbox'))
 const AdminAgreements   = lazy(() => import('./pages/admin/AdminAgreements'))
@@ -105,6 +106,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
               <AdminPayroll />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/invoices"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+              <AdminInvoices />
             </ProtectedRoute>
           }
         />
