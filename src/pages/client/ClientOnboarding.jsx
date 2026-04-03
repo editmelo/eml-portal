@@ -200,6 +200,10 @@ export default function ClientOnboarding() {
   }
 
   const err = (field) => isMissing(field, step, form, attempted)
+  const hasAnyInput = Object.entries(EMPTY_FORM).some(([key, empty]) => {
+    const val = form[key]
+    return Array.isArray(empty) ? val?.length > 0 : val?.trim?.() !== ''
+  })
 
   const next = () => {
     if (!isStepValid(step, form)) { setAttempted(true); return }
@@ -586,7 +590,7 @@ export default function ClientOnboarding() {
               Back
             </Button>
             <div className="flex gap-2">
-              <Button variant="secondary" size="sm" icon={<Save size={14} />} onClick={handleSaveDraft}>
+              <Button variant="secondary" size="sm" icon={<Save size={14} />} onClick={handleSaveDraft} disabled={!hasAnyInput}>
                 Save & Continue Later
               </Button>
               {step < STEPS.length ? (
