@@ -111,7 +111,8 @@ export default function Sidebar({ open, onClose }) {
   const handleSwitch = (newRole) => {
     setViewRole(newRole)
     setSwitchOpen(false)
-    navigate(newRole === ROLES.DESIGNER ? '/designer' : '/admin', { replace: true })
+    const home = newRole === ROLES.DESIGNER ? '/designer' : newRole === ROLES.CLIENT ? '/client' : '/admin'
+    navigate(home, { replace: true })
   }
 
   const handleNavClick = () => {
@@ -168,7 +169,7 @@ export default function Sidebar({ open, onClose }) {
               </button>
               {switchOpen && (
                 <div className="absolute left-0 top-full mt-1 z-50 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden min-w-[130px]">
-                  {[ROLES.ADMIN, ROLES.DESIGNER].map((r) => (
+                  {[ROLES.ADMIN, ROLES.DESIGNER, ROLES.CLIENT].map((r) => (
                     <button
                       key={r}
                       onClick={() => handleSwitch(r)}
