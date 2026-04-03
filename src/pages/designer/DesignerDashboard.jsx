@@ -6,11 +6,12 @@ import ProgressBar from '../../components/ui/ProgressBar'
 import Button from '../../components/ui/Button'
 import useAuthStore, { selectUser } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
+import useQuoteStore from '../../store/quoteStore'
 import { MOCK_USERS } from '../../lib/mockData'
 import { formatCurrency, formatDate } from '../../lib/utils'
 import {
   Upload, DollarSign, ArrowRight, AlertTriangle,
-  Clock, CheckCircle2, Flag, CalendarDays,
+  Clock, CheckCircle2, Flag, CalendarDays, MapPin,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -21,11 +22,16 @@ function daysUntil(dateStr) {
 }
 
 export default function DesignerDashboard() {
-  const user     = useAuthStore(selectUser)
-  const projects = useProjectStore((s) => s.projects)
-  const payroll  = useProjectStore((s) => s.payroll)
-  const dTodos   = useProjectStore((s) => s.designerTodos)
-  const navigate = useNavigate()
+  const user            = useAuthStore(selectUser)
+  const projects        = useProjectStore((s) => s.projects)
+  const payroll         = useProjectStore((s) => s.payroll)
+  const dTodos          = useProjectStore((s) => s.designerTodos)
+  const designerProfile = useProjectStore((s) => s.designerProfiles[user?.id])
+  const getDailyQuote   = useQuoteStore((s) => s.getDailyQuote)
+  const navigate        = useNavigate()
+
+  const quote = getDailyQuote()
+  const addressMissing = !designerProfile?.street || !designerProfile?.city || !designerProfile?.state || !designerProfile?.zip
 
   const myProjects    = projects.filter((p) => p.designerIds?.includes(user?.id))
   const myPayroll     = payroll.filter((p) => p.designerId === user?.id)
@@ -60,6 +66,29 @@ export default function DesignerDashboard() {
         subtitle="Your work at a glance — due soon, priorities, and active projects."
         className="mb-8"
       />
+
+      {/* Daily quote */}
+      {quote && (
+        <Card className="mb-6 px-6 py-5 border-l-4 border-l-brand-500">
+          <p className="text-slate-700 dark:text-slate-200 text-sm italic leading-relaxed">"{quote.text}"</p>
+          <p className="text-slate-400 text-xs mt-2">— {quote.author}</p>
+        </Card>
+      )}
+
+      {/* Address missing banner */}
+      {addressMissing && (
+        <button
+          onClick={() => navigate('/designer/settings')}
+          className="w-full mb-6 flex items-center gap-3 rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-5 py-3.5 text-left hover:bg-amber-100 dark:hover:bg-amber-500/15 transition-colors"
+        >
+          <MapPin size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Mailing address required</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">We need your address on file to send your 1099 at year-end. Update it in Settings.</p>
+          </div>
+          <ArrowRight size={14} className="text-amber-400 shrink-0" />
+        </button>
+      )}
 
       {/* ── Earnings row ── */}
       <div className="grid grid-cols-2 gap-4 mb-6">

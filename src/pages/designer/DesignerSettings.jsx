@@ -102,6 +102,10 @@ function ProfileTab({ user }) {
     specialty:  user?.specialty  ?? '',
     portfolio:  user?.portfolio  ?? '',
     nickname:   user?.nickname   ?? '',
+    street:     existingProfile?.street   ?? '',
+    city:       existingProfile?.city     ?? '',
+    state:      existingProfile?.state    ?? '',
+    zip:        existingProfile?.zip      ?? '',
   })
   const [avatar, setAvatar]     = useState(existingProfile?.avatar ?? null)
   const [saved, setSaved]       = useState(false)
@@ -118,6 +122,10 @@ function ProfileTab({ user }) {
       specialty: user?.specialty ?? '',
       portfolio: user?.portfolio ?? '',
       nickname:  user?.nickname  ?? '',
+      street:    existingProfile?.street   ?? '',
+      city:      existingProfile?.city     ?? '',
+      state:     existingProfile?.state    ?? '',
+      zip:       existingProfile?.zip      ?? '',
     })
     setAvatar(existingProfile?.avatar ?? user?.avatar ?? null)
   }, [user?.id, user?.name, user?.phone, user?.nickname, user?.avatar])
@@ -134,9 +142,15 @@ function ProfileTab({ user }) {
     reader.readAsDataURL(file)
   }
 
+  const addressComplete = form.street.trim() && form.city.trim() && form.state.trim() && form.zip.trim()
+
   const handleSave = () => {
     updateUser({ ...form })
-    saveDesignerProfile(user?.id, { ...existingProfile, avatar, specialty: form.specialty, phone: form.phone, portfolio: form.portfolio })
+    saveDesignerProfile(user?.id, {
+      ...existingProfile, avatar,
+      specialty: form.specialty, phone: form.phone, portfolio: form.portfolio,
+      street: form.street.trim(), city: form.city.trim(), state: form.state.trim(), zip: form.zip.trim(),
+    })
     saveProfile({ name: form.name, phone: form.phone, nickname: form.nickname, avatar })
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
@@ -211,6 +225,41 @@ function ProfileTab({ user }) {
           <div className="sm:col-span-2">
             <label className={LABEL}>Portfolio URL</label>
             <input className={INPUT} type="url" placeholder="https://yourportfolio.com" value={form.portfolio} onChange={(e) => setForm((f) => ({ ...f, portfolio: e.target.value }))} />
+          </div>
+        </div>
+
+        {/* ── Mailing Address (required for 1099) ── */}
+        <div className="border-t border-slate-100 pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Mailing Address</p>
+            {!addressComplete && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-500 border border-red-200">
+                Required
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-400 mb-3 -mt-1">
+            We need your mailing address on file to send your 1099 at the end of the year.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className={LABEL}>Street Address</label>
+              <input className={INPUT} placeholder="123 Main St, Apt 4B" value={form.street} onChange={(e) => setForm((f) => ({ ...f, street: e.target.value }))} />
+            </div>
+            <div>
+              <label className={LABEL}>City</label>
+              <input className={INPUT} placeholder="Los Angeles" value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>State</label>
+                <input className={INPUT} placeholder="CA" maxLength={2} value={form.state} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))} />
+              </div>
+              <div>
+                <label className={LABEL}>ZIP Code</label>
+                <input className={INPUT} placeholder="90001" maxLength={10} value={form.zip} onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))} />
+              </div>
+            </div>
           </div>
         </div>
 

@@ -12,6 +12,14 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+// ── Draft type badge config ───────────────────────────────────────────────────
+const DRAFT_BADGES = {
+  website:            { label: 'Website',          cls: 'bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' },
+  brand_identity:     { label: 'Brand Identity',   cls: 'bg-violet-100 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400' },
+  social_management:  { label: 'Social',           cls: 'bg-teal-100 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400' },
+  creative_on_demand: { label: 'Creative',         cls: 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' },
+}
+
 // ── File type helpers ──────────────────────────────────────────────────────────
 function fileIcon(url = '') {
   if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url)) return <ImageIcon size={18} className="text-violet-500" />
@@ -192,16 +200,22 @@ export default function ClientDrafts() {
                   {isWebsite ? <Globe size={18} className="text-blue-500" /> : fileIcon(draft.url)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{draft.label}</p>
                     <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
-                      isWebsite ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' : 'bg-violet-100 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400'
+                      (DRAFT_BADGES[draft.draftType] ?? DRAFT_BADGES.brand_identity).cls
                     }`}>
-                      {isWebsite ? 'Website' : 'Brand Identity'}
+                      {(DRAFT_BADGES[draft.draftType] ?? DRAFT_BADGES.brand_identity).label}
                     </span>
+                    {draft.contentCategory && (
+                      <span className="text-[9px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">
+                        {draft.contentCategory}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5">
                     {isWebsite ? 'Shared' : 'Uploaded'} {formatDate(draft.uploadedAt)}
+                    {draft.pillar && <span> &middot; {draft.pillar}</span>}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

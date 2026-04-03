@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import PortalLayout from '../../components/layout/PortalLayout'
 import PageHeader from '../../components/layout/PageHeader'
-import { Card, CardBody } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import useAuthStore, { selectUser } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
@@ -11,6 +10,39 @@ import { cn } from '../../lib/utils'
 import { logActivity } from '../../store/activityStore'
 import toast from 'react-hot-toast'
 
+// ── Draft type configuration ────────────────────────────────────────────────
+const DRAFT_TYPES = [
+  { key: 'brand_identity',     label: 'Brand Identity',     desc: 'Upload design files' },
+  { key: 'website',            label: 'Website Design',     desc: 'Share a link' },
+  { key: 'social_management',  label: 'Social Management',  desc: 'Social & marketing content' },
+  { key: 'creative_on_demand', label: 'Creative On-Demand', desc: 'Flyers, menus, merch & more' },
+]
+
+const SM_PILLARS = [
+  'Essential Coverage',
+  'Daily Presence',
+  'Strategic Growth',
+  'Premium Authority',
+]
+
+const SM_CATEGORIES = [
+  'Social Media Content',
+  'Social Media Strategy',
+  'Marketing Strategy',
+  'Analytics Reports',
+  'Ad Content',
+  'Campaign Content',
+]
+
+const COD_CATEGORIES = [
+  'Flyers',
+  'Menu',
+  'Social Content',
+  'Apparel & Merch Design — Essential',
+  'Apparel & Merch Design — Premium',
+  'Apparel & Merch Design — Full Buyout',
+]
+
 export default function DesignerUpload() {
   const user       = useAuthStore(selectUser)
   const projects   = useProjectStore((s) => s.projects)
@@ -18,12 +50,14 @@ export default function DesignerUpload() {
 
   const myProjects = projects.filter((p) => p.designerIds?.includes(user?.id))
 
-  const [selectedProject, setSelectedProject] = useState(myProjects[0]?.id ?? '')
-  const [draftType,       setDraftType]       = useState('brand_identity') // 'brand_identity' | 'website'
-  const [label,           setLabel]           = useState('')
-  const [websiteUrl,      setWebsiteUrl]      = useState('')
-  const [files,           setFiles]           = useState([])
-  const [uploaded,        setUploaded]        = useState(false)
+  const [selectedProject,  setSelectedProject]  = useState(myProjects[0]?.id ?? '')
+  const [draftType,        setDraftType]        = useState('brand_identity')
+  const [label,            setLabel]            = useState('')
+  const [websiteUrl,       setWebsiteUrl]       = useState('')
+  const [files,            setFiles]            = useState([])
+  const [contentCategory,  setContentCategory]  = useState('')
+  const [pillar,           setPillar]           = useState('')
+  const [uploaded,         setUploaded]         = useState(false)
 
   const onDrop = useCallback((accepted) => {
     setFiles((prev) => [...prev, ...accepted])
@@ -37,6 +71,23 @@ export default function DesignerUpload() {
 
   const removeFile = (idx) => setFiles((f) => f.filter((_, i) => i !== idx))
 
+  const handleTypeChange = (key) => {
+    setDraftType(key)
+    setContentCategory('')
+    setPillar('')
+    setFiles([])
+    setWebsiteUrl('')
+    setLabel('')
+  }
+
+  const canSubmit = () => {
+    if (!selectedProject) return false
+    if (draftType === 'website') return !!websiteUrl.trim()
+    if (draftType === 'social_management') return contentCategory && pillar && files.length > 0
+    if (draftType === 'creative_on_demand') return contentCategory && files.length > 0
+    return files.length > 0
+  }
+
   const handleSubmit = () => {
     if (!selectedProject) {
       toast.error('Please select a project.')
@@ -44,65 +95,77 @@ export default function DesignerUpload() {
     }
 
     const projectName = myProjects.find((p) => p.id === selectedProject)?.name ?? 'project'
+    const makeId = () => `draft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+    const today  = new Date().toISOString().split('T')[0]
 
     if (draftType === 'website') {
-      // Website draft — just a link
-      if (!websiteUrl.trim()) {
-        toast.error('Please enter the website URL.')
-        return
-      }
+      if (!websiteUrl.trim()) { toast.error('Please enter the website URL.'); return }
       addDraft(selectedProject, {
-        id:          `draft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        url:         websiteUrl.trim(),
-        label:       label || 'Website Design',
-        draftType:   'website',
-        uploadedAt:  new Date().toISOString().split('T')[0],
-        designerId:  user.id,
-        comments:    [],
+        id: makeId(), url: websiteUrl.trim(), label: label || 'Website Design',
+        draftType: 'website', uploadedAt: today, designerId: user.id, comments: [],
       })
-      logActivity({
-        actorId:     user.id,
-        actorName:   user.name,
-        actorRole:   user.role,
-        action:      'draft_uploaded',
-        description: `shared a website design link for "${projectName}"`,
-        projectId:   selectedProject,
-      })
+      logActivity({ actorId: user.id, actorName: user.name, actorRole: user.role, action: 'draft_uploaded',
+        description: `shared a website design link for "${projectName}"`, projectId: selectedProject })
       toast.success('Website link shared! Client status updated to Review.')
-    } else {
-      // Brand identity draft — file uploads
-      if (files.length === 0) {
-        toast.error('Add at least one file.')
-        return
-      }
+
+    } else if (draftType === 'social_management') {
+      if (!contentCategory) { toast.error('Please select a content type.'); return }
+      if (!pillar) { toast.error('Please select a pillar.'); return }
+      if (files.length === 0) { toast.error('Add at least one file.'); return }
       files.forEach((file) => {
         addDraft(selectedProject, {
-          id:          `draft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          url:         URL.createObjectURL(file),
-          label:       label || file.name,
-          draftType:   'brand_identity',
-          uploadedAt:  new Date().toISOString().split('T')[0],
-          designerId:  user.id,
-          comments:    [],
+          id: makeId(), url: URL.createObjectURL(file),
+          label: label || `${contentCategory} — ${pillar}`,
+          draftType: 'social_management', contentCategory, pillar,
+          uploadedAt: today, designerId: user.id, comments: [],
         })
       })
-      logActivity({
-        actorId:     user.id,
-        actorName:   user.name,
-        actorRole:   user.role,
-        action:      'draft_uploaded',
-        description: `uploaded ${files.length} brand identity draft${files.length > 1 ? 's' : ''} for "${projectName}"`,
-        projectId:   selectedProject,
+      logActivity({ actorId: user.id, actorName: user.name, actorRole: user.role, action: 'draft_uploaded',
+        description: `uploaded ${files.length} ${contentCategory.toLowerCase()} file${files.length > 1 ? 's' : ''} (${pillar}) for "${projectName}"`,
+        projectId: selectedProject })
+      toast.success('Social management content uploaded! Client notified.')
+
+    } else if (draftType === 'creative_on_demand') {
+      if (!contentCategory) { toast.error('Please select a content type.'); return }
+      if (files.length === 0) { toast.error('Add at least one file.'); return }
+      files.forEach((file) => {
+        addDraft(selectedProject, {
+          id: makeId(), url: URL.createObjectURL(file),
+          label: label || contentCategory,
+          draftType: 'creative_on_demand', contentCategory,
+          uploadedAt: today, designerId: user.id, comments: [],
+        })
       })
+      logActivity({ actorId: user.id, actorName: user.name, actorRole: user.role, action: 'draft_uploaded',
+        description: `uploaded ${files.length} ${contentCategory.toLowerCase()} file${files.length > 1 ? 's' : ''} for "${projectName}"`,
+        projectId: selectedProject })
+      toast.success('Creative on-demand content uploaded! Client notified.')
+
+    } else {
+      // brand_identity
+      if (files.length === 0) { toast.error('Add at least one file.'); return }
+      files.forEach((file) => {
+        addDraft(selectedProject, {
+          id: makeId(), url: URL.createObjectURL(file),
+          label: label || file.name, draftType: 'brand_identity',
+          uploadedAt: today, designerId: user.id, comments: [],
+        })
+      })
+      logActivity({ actorId: user.id, actorName: user.name, actorRole: user.role, action: 'draft_uploaded',
+        description: `uploaded ${files.length} brand identity draft${files.length > 1 ? 's' : ''} for "${projectName}"`,
+        projectId: selectedProject })
       toast.success('Drafts uploaded! Client status updated to Review.')
     }
 
     setFiles([])
     setLabel('')
     setWebsiteUrl('')
+    setContentCategory('')
+    setPillar('')
     setUploaded(true)
   }
 
+  // ── Success screen ──────────────────────────────────────────────────────────
   if (uploaded) {
     return (
       <PortalLayout>
@@ -118,6 +181,17 @@ export default function DesignerUpload() {
     )
   }
 
+  const labelPlaceholder = {
+    brand_identity:     'e.g. Logo Concept v2',
+    website:            'e.g. Homepage v2',
+    social_management:  'e.g. April Social Package',
+    creative_on_demand: 'e.g. Grand Opening Flyer',
+  }[draftType]
+
+  const submitLabel = draftType === 'website'
+    ? 'Share Website Link'
+    : `Upload ${files.length > 0 ? `${files.length} file${files.length > 1 ? 's' : ''}` : 'Drafts'}`
+
   return (
     <PortalLayout>
       <PageHeader title="Upload Drafts" subtitle="Drop your design files below. The client will be notified automatically." className="mb-8" />
@@ -126,31 +200,22 @@ export default function DesignerUpload() {
         {/* Project selector */}
         <div>
           <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Project</label>
-          <select
-            className="input-base"
-            value={selectedProject}
-            onChange={(e) => setSelectedProject(e.target.value)}
-          >
+          <select className="input-base" value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)}>
             <option value="">Select project…</option>
-            {myProjects.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
+            {myProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
 
-        {/* Draft type selector */}
+        {/* Draft type selector — 2×2 grid */}
         <div>
           <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">Draft Type</label>
-          <div className="flex gap-2">
-            {[
-              { key: 'brand_identity', label: 'Brand Identity', desc: 'Upload design files' },
-              { key: 'website',        label: 'Website Design', desc: 'Share a link' },
-            ].map(({ key, label: lbl, desc }) => (
+          <div className="grid grid-cols-2 gap-2">
+            {DRAFT_TYPES.map(({ key, label: lbl, desc }) => (
               <button
                 key={key}
-                onClick={() => setDraftType(key)}
+                onClick={() => handleTypeChange(key)}
                 className={cn(
-                  'flex-1 rounded-xl border-2 p-3 text-left transition-all',
+                  'rounded-xl border-2 p-3 text-left transition-all',
                   draftType === key
                     ? 'border-brand-500 bg-brand-500/5 dark:bg-brand-500/10'
                     : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
@@ -165,18 +230,51 @@ export default function DesignerUpload() {
           </div>
         </div>
 
+        {/* Social Management — pillar selector */}
+        {draftType === 'social_management' && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Pillar</label>
+            <select className="input-base" value={pillar} onChange={(e) => setPillar(e.target.value)}>
+              <option value="">Select pillar…</option>
+              {SM_PILLARS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Social Management — content category */}
+        {draftType === 'social_management' && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Content Type</label>
+            <select className="input-base" value={contentCategory} onChange={(e) => setContentCategory(e.target.value)}>
+              <option value="">Select content type…</option>
+              {SM_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Creative On-Demand — content category */}
+        {draftType === 'creative_on_demand' && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Content Type</label>
+            <select className="input-base" value={contentCategory} onChange={(e) => setContentCategory(e.target.value)}>
+              <option value="">Select content type…</option>
+              {COD_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        )}
+
         {/* Label */}
         <div>
           <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Draft Label</label>
           <input
             className="input-base"
-            placeholder={draftType === 'website' ? 'e.g. Homepage v2' : 'e.g. Logo Concept v2'}
+            placeholder={labelPlaceholder}
             value={label}
             onChange={(e) => setLabel(e.target.value)}
           />
         </div>
 
-        {/* Website URL input (when website type selected) */}
+        {/* Website URL input */}
         {draftType === 'website' && (
           <div>
             <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Website URL</label>
@@ -191,8 +289,8 @@ export default function DesignerUpload() {
           </div>
         )}
 
-        {/* Dropzone (when brand identity type selected) */}
-        {draftType === 'brand_identity' && (
+        {/* Dropzone (all types except website) */}
+        {draftType !== 'website' && (
           <>
             <div
               {...getRootProps()}
@@ -211,7 +309,6 @@ export default function DesignerUpload() {
               <p className="text-xs text-slate-400 mt-1">PNG, JPG, PDF, AI, EPS</p>
             </div>
 
-            {/* File list */}
             {files.length > 0 && (
               <div className="space-y-2">
                 {files.map((file, i) => (
@@ -233,12 +330,9 @@ export default function DesignerUpload() {
           className="w-full"
           icon={<Upload size={15} />}
           onClick={handleSubmit}
-          disabled={!selectedProject || (draftType === 'brand_identity' ? files.length === 0 : !websiteUrl.trim())}
+          disabled={!canSubmit()}
         >
-          {draftType === 'website'
-            ? 'Share Website Link'
-            : `Upload ${files.length > 0 ? `${files.length} file${files.length > 1 ? 's' : ''}` : 'Drafts'}`
-          }
+          {submitLabel}
         </Button>
       </div>
     </PortalLayout>

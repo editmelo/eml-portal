@@ -60,6 +60,7 @@ export const LS_KEYS = {
   AUTH_USER:        'eml_auth_user',
   QUOTE_CACHE:      'eml_daily_quote',
   QUOTE_CACHE_DATE: 'eml_daily_quote_date',
+  VIEW_ROLE:        'eml_view_role',
 }
 
 // ─── Navigation config per role ───────────────────────────────────────────────
@@ -179,4 +180,51 @@ export const QUOTE_POOL = [
   { text: "I am not free while any woman is unfree, even when her shackles are very different from my own.", author: "Audre Lorde" },
   { text: "The question isn't who's going to let me; it's who is going to stop me.", author: "Ayn Rand" },
   { text: "Think like a queen. A queen is not afraid to fail. Failure is another stepping stone to greatness.", author: "Oprah Winfrey" },
+
+  // Creative Confidence & Artistic Freedom
+  { text: "If you hear a voice within you say, 'You cannot paint,' then by all means paint, and that voice will be silenced.", author: "Vincent van Gogh" },
+  { text: "The worst enemy to creativity is self-doubt.", author: "Sylvia Plath" },
+  { text: "Creativity requires the courage to let go of certainties.", author: "Erich Fromm" },
+  { text: "If you're not prepared to be wrong, you'll never come up with anything original.", author: "Ken Robinson" },
+  { text: "The chief enemy of creativity is good sense.", author: "Pablo Picasso" },
+  { text: "Every child is an artist. The problem is how to remain an artist once we grow up.", author: "Pablo Picasso" },
+  { text: "Learn the rules like a pro, so you can break them like an artist.", author: "Pablo Picasso" },
+  { text: "I found I could say things with color and shapes that I couldn't say any other way — things I had no words for.", author: "Georgia O'Keeffe" },
+  { text: "Whether you succeed or not is irrelevant — there is no such thing. Making your unknown known is the important thing.", author: "Georgia O'Keeffe" },
+  { text: "In order to be irreplaceable one must always be different.", author: "Coco Chanel" },
+
+  // The Design Process & Creative Thinking
+  { text: "Design is thinking made visual.", author: "Saul Bass" },
+  { text: "I want to make beautiful things, even if nobody cares, as opposed to ugly things. That's my intent.", author: "Saul Bass" },
+  { text: "There are three responses to a piece of design — yes, no, and WOW. Wow is the one to aim for.", author: "Milton Glaser" },
+  { text: "Simplicity is not the goal. It is the by-product of a good idea and modest expectations.", author: "Paul Rand" },
+  { text: "Design can be art. Design can be aesthetics. Design is so simple, that's why it is so complicated.", author: "Paul Rand" },
+  { text: "If you can design one thing, you can design everything.", author: "Massimo Vignelli" },
+  { text: "Good design is a language, not a style.", author: "Massimo Vignelli" },
+  { text: "It's through mistakes that you actually can grow. You have to get bad in order to get good.", author: "Paula Scher" },
+  { text: "Creativity involves breaking out of established patterns in order to look at things in a different way.", author: "Edward de Bono" },
+  { text: "Art, freedom, and creativity will change society faster than politics.", author: "Victor Pinchuk" },
+
+  // Bold Creativity & Taking Risks
+  { text: "Creativity is inventing, experimenting, growing, taking risks, breaking rules, making mistakes, and having fun.", author: "Mary Lou Cook" },
+  { text: "Vulnerability is the birthplace of love, belonging, joy, courage, empathy, and creativity.", author: "Brene Brown" },
+  { text: "A creative life is an amplified life. It's a bigger life, a happier life, an expanded life, and a hell of a lot more interesting life.", author: "Elizabeth Gilbert" },
+  { text: "Creative courage is the discovering of new forms, new symbols, new patterns on which a new society can be built.", author: "Rollo May" },
+  { text: "In order to be open to creativity, one must have the capacity for constructive use of solitude.", author: "Rollo May" },
+  { text: "An essential aspect of creativity is not being afraid to fail.", author: "Edwin Land" },
+  { text: "Curiosity about life in all of its aspects, I think, is still the secret of great creative people.", author: "Leo Burnett" },
+  { text: "Make it simple. Make it memorable. Make it inviting to look at. Make it fun to read.", author: "Leo Burnett" },
+  { text: "Talent, I believe, is most likely to be found among nonconformists, dissenters, and rebels.", author: "David Ogilvy" },
+
+  // Finding Your Creative Voice
+  { text: "The one thing that you have that nobody else has is you. Your voice, your mind, your story, your vision.", author: "Neil Gaiman" },
+  { text: "Start copying what you love. Copy copy copy copy. At the end of the copy you will find yourself.", author: "Austin Kleon" },
+  { text: "You are, in fact, a mashup of what you choose to let into your life. You are the sum of your influences.", author: "Austin Kleon" },
+  { text: "Inspiration exists, but it has to find you working.", author: "Pablo Picasso" },
+  { text: "Have no fear of perfection — you'll never reach it.", author: "Salvador Dali" },
+  { text: "The desire to create is one of the deepest yearnings of the human soul.", author: "Dieter F. Uchtdorf" },
+  { text: "I am seeking. I am striving. I am in it with all my heart.", author: "Vincent van Gogh" },
+  { text: "Creativity is allowing yourself to make mistakes. Art is knowing which ones to keep.", author: "Scott Adams" },
+  { text: "The creative adult is the child who survived.", author: "Ursula K. Le Guin" },
+  { text: "Do not fear mistakes. There are none.", author: "Miles Davis" },
 ]

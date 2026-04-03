@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { LS_KEYS } from '../lib/constants'
 
 /** Map a Supabase user object to the app's user shape */
 function shapeUser(supabaseUser) {
@@ -24,7 +25,7 @@ const useAuthStore = create((set, get) => ({
   isAuthenticated: false,
   isLoading:       true,   // stays true until init() resolves
   error:           null,
-  viewRole:        null,   // admin can switch portal view without re-logging in
+  viewRole:        localStorage.getItem(LS_KEYS.VIEW_ROLE) || null,   // admin can switch portal view without re-logging in
 
   // ── Actions ────────────────────────────────────────────────────────────
 
@@ -148,6 +149,7 @@ const useAuthStore = create((set, get) => ({
 
   /** Sign out and clear local session */
   logout: async () => {
+    localStorage.removeItem(LS_KEYS.VIEW_ROLE)
     set({ user: null, isAuthenticated: false, error: null, viewRole: null })
     await supabase.auth.signOut()
   },
@@ -156,7 +158,14 @@ const useAuthStore = create((set, get) => ({
    * Admin-only: switch the visible role without re-logging in.
    * Pass null to reset back to the user's real role.
    */
-  setViewRole: (role) => set({ viewRole: role }),
+  setViewRole: (role) => {
+    if (role) {
+      localStorage.setItem(LS_KEYS.VIEW_ROLE, role)
+    } else {
+      localStorage.removeItem(LS_KEYS.VIEW_ROLE)
+    }
+    set({ viewRole: role })
+  },
 
   /**
    * Save profile changes to Supabase user_metadata so they persist across sessions.

@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Suspense, lazy, useEffect } from 'react'
 import ProtectedRoute, { ROLE_HOME } from './routes/ProtectedRoute'
-import useAuthStore, { selectIsAuthenticated, selectRole, selectAuthLoading } from './store/authStore'
+import useAuthStore, { selectIsAuthenticated, selectViewRole, selectAuthLoading } from './store/authStore'
 import { ROLES } from './lib/constants'
 import LoadingScreen from './components/ui/LoadingScreen'
 
@@ -51,10 +51,10 @@ const AuthCallback = lazy(() => import('./pages/auth/AuthCallback'))
 // ── Root redirect ─────────────────────────────────────────────────────────────
 function RootRedirect() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated)
-  const role            = useAuthStore(selectRole)
+  const viewRole        = useAuthStore(selectViewRole)
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  return <Navigate to={ROLE_HOME[role] ?? '/login'} replace />
+  return <Navigate to={ROLE_HOME[viewRole] ?? '/login'} replace />
 }
 
 // ── App ───────────────────────────────────────────────────────────────────────
