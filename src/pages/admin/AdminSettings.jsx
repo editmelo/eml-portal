@@ -589,11 +589,41 @@ function IntegrationsTab({ isDark }) {
       </SettingCard>
 
       <SettingCard isDark={isDark}>
+        <SectionLabel isDark={isDark}>Zoom</SectionLabel>
+        <p className={cn('text-sm mb-4', subText)}>
+          Meeting recordings and transcripts are automatically pulled from your Zoom account and linked to projects.
+        </p>
+        <div className={cn(
+          'flex items-center justify-between p-4 rounded-xl border',
+          isDark ? 'bg-emerald-900/20 border-emerald-800/40' : 'bg-emerald-50 border-emerald-200'
+        )}>
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              'h-10 w-10 rounded-lg flex items-center justify-center',
+              isDark ? 'bg-emerald-900/40' : 'bg-emerald-100'
+            )}>
+              <Check size={18} className="text-emerald-500" />
+            </div>
+            <div>
+              <p className={cn('text-sm font-semibold', isDark ? 'text-emerald-300' : 'text-emerald-800')}>
+                Zoom Connected
+              </p>
+              <p className={cn('text-xs', isDark ? 'text-emerald-400/70' : 'text-emerald-600')}>
+                Server-to-Server OAuth · Auto-syncs recordings and transcripts
+              </p>
+            </div>
+          </div>
+        </div>
+        <p className={cn('text-xs mt-3', subText)}>
+          Enable "Cloud Recording" and "Audio Transcript" in your Zoom account settings for automatic transcripts.
+        </p>
+      </SettingCard>
+
+      <SettingCard isDark={isDark}>
         <SectionLabel isDark={isDark}>Other Integrations</SectionLabel>
         <div className="space-y-3">
           {[
             { name: 'DocuSign / HelloSign', desc: 'Digital signatures for agreements', status: 'Coming soon' },
-            { name: 'Zoom', desc: 'Meeting notes and recordings', status: 'Coming soon' },
             { name: 'Calendly', desc: 'Scheduling integration', status: 'Coming soon' },
           ].map((item) => (
             <div key={item.name} className={cn(

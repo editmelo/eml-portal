@@ -189,3 +189,52 @@ CREATE POLICY "Service role manages invoices"
   ON invoices FOR ALL
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
+
+
+-- ============================================================================
+-- 6. ZOOM INTEGRATION TABLE
+-- ============================================================================
+
+-- Stores Zoom meetings with recordings/transcripts linked to projects
+CREATE TABLE IF NOT EXISTS zoom_meetings (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  zoom_meeting_id text UNIQUE,
+  project_id      text,
+  topic           text NOT NULL,
+  start_time      timestamptz,
+  duration        integer,
+  join_url        text,
+  host_email      text,
+  status          text DEFAULT 'scheduled',
+  recording_url   text,
+  transcript      text,
+  ai_summary      text,
+  recording_ready boolean DEFAULT false,
+  created_at      timestamptz DEFAULT now(),
+  updated_at      timestamptz DEFAULT now()
+);
+
+ALTER TABLE zoom_meetings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can manage all meetings" ON zoom_meetings;
+CREATE POLICY "Admins can manage all meetings"
+  ON zoom_meetings FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'ADMIN')
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'ADMIN')
+  );
+
+DROP POLICY IF EXISTS "Authenticated users can view meetings" ON zoom_meetings;
+CREATE POLICY "Authenticated users can view meetings"
+  ON zoom_meetings FOR SELECT
+  TO authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "Service role manages meetings" ON zoom_meetings;
+CREATE POLICY "Service role manages meetings"
+  ON zoom_meetings FOR ALL
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
