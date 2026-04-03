@@ -7,9 +7,39 @@ import Button from '../../components/ui/Button'
 import useProjectStore from '../../store/projectStore'
 import useThemeStore from '../../store/themeStore'
 import { formatCurrency, formatDate } from '../../lib/utils'
-import { UserPlus, Pencil, Trash2, X, ChevronDown, Rocket, ExternalLink } from 'lucide-react'
+import { UserPlus, Pencil, Trash2, X, ChevronDown, Rocket, ExternalLink, Undo2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
+
+// ── Confirm Push Modal ───────────────────────────────────────────────────────
+function ConfirmPushModal({ lead, onClose, onConfirm }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-sm bg-admin-surface border border-admin-border rounded-2xl shadow-2xl">
+        <div className="px-6 py-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-brand-500/10 flex items-center justify-center">
+              <Rocket size={18} className="text-brand-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Push to Projects?</p>
+              <p className="text-xs text-slate-500">This will create a new project from this lead.</p>
+            </div>
+          </div>
+          <div className="bg-admin-bg rounded-lg px-4 py-3 space-y-1">
+            <p className="text-sm text-slate-200 font-medium">{lead.name}</p>
+            {lead.service && <p className="text-xs text-slate-400">{lead.service}</p>}
+            {lead.potentialValue > 0 && <p className="text-xs text-slate-500">${lead.potentialValue.toLocaleString()}</p>}
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-admin-border text-sm text-slate-400 hover:text-slate-200 transition-colors">Cancel</button>
+            <button onClick={() => { onConfirm(); onClose() }} className="px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors">Push to Projects</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const LEAD_STATUSES = [
   'New',
@@ -147,10 +177,12 @@ export default function AdminLeads() {
   const projects      = useProjectStore((s) => s.projects)
   const addLead       = useProjectStore((s) => s.addLead)
   const updateLead    = useProjectStore((s) => s.updateLead)
-  const deleteLead    = useProjectStore((s) => s.deleteLead)
-  const createProject = useProjectStore((s) => s.createProject)
+  const deleteLead     = useProjectStore((s) => s.deleteLead)
+  const createProject  = useProjectStore((s) => s.createProject)
+  const deleteProject  = useProjectStore((s) => s.deleteProject)
   const [showAdd, setShowAdd] = useState(false)
   const [editingLead, setEditingLead] = useState(null)
+  const [confirmPush, setConfirmPush] = useState(null)
 
   const DONE_STATUSES = ['Done', 'Archived', 'Dead']
   const openLeads = leads.filter((l) => !DONE_STATUSES.includes(l.status))
@@ -171,7 +203,7 @@ export default function AdminLeads() {
       name:           `${lead.name} – ${lead.service || 'New Project'}`,
       clientId:       null,
       designerIds:    [],
-      status:         'Active',
+      status:         'New',
       startDate:      new Date().toISOString().split('T')[0],
       dueDate:        null,
       projectValue:   lead.potentialValue || 0,
@@ -181,7 +213,25 @@ export default function AdminLeads() {
       leadId:         lead.id,
     })
     updateLead(lead.id, { projectId: project.id })
-    toast.success('Lead pushed to Projects!')
+    toast.success(
+      (t) => (
+        <div className="flex items-center gap-3">
+          <span>Lead pushed to Projects!</span>
+          <button
+            onClick={() => {
+              deleteProject(project.id)
+              updateLead(lead.id, { projectId: undefined })
+              toast.dismiss(t.id)
+              toast.success('Undone — project removed')
+            }}
+            className="flex items-center gap-1 px-2 py-1 rounded bg-white/10 text-xs font-medium hover:bg-white/20 transition-colors shrink-0"
+          >
+            <Undo2 size={11} /> Undo
+          </button>
+        </div>
+      ),
+      { duration: 8000 }
+    )
   }
 
   const getLinkedProject = (lead) => projects.find((p) => p.id === lead.projectId)
@@ -259,16 +309,29 @@ export default function AdminLeads() {
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-1">
                       {lead.projectId ? (
-                        <button
-                          onClick={() => navigate('/admin/projects')}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-900/20 text-emerald-400 text-xs font-medium hover:bg-emerald-900/30 transition-colors"
-                          title="View linked project"
-                        >
-                          <ExternalLink size={11} /> Project
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => navigate('/admin/projects')}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-900/20 text-emerald-400 text-xs font-medium hover:bg-emerald-900/30 transition-colors"
+                            title="View linked project"
+                          >
+                            <ExternalLink size={11} /> Project
+                          </button>
+                          <button
+                            onClick={() => {
+                              deleteProject(lead.projectId)
+                              updateLead(lead.id, { projectId: undefined })
+                              toast.success('Project unlinked and removed')
+                            }}
+                            className="p-1 rounded-md text-slate-600 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                            title="Unlink and remove project"
+                          >
+                            <Undo2 size={11} />
+                          </button>
+                        </div>
                       ) : (
                         <button
-                          onClick={() => handlePushToProject(lead)}
+                          onClick={() => setConfirmPush(lead)}
                           className="p-1.5 rounded-md text-slate-500 hover:text-brand-400 hover:bg-brand-900/20 transition-colors"
                           title="Push to Projects"
                         >
@@ -310,6 +373,14 @@ export default function AdminLeads() {
           lead={editingLead}
           onClose={() => setEditingLead(null)}
           onSave={(data) => updateLead(editingLead.id, data)}
+        />
+      )}
+
+      {confirmPush && (
+        <ConfirmPushModal
+          lead={confirmPush}
+          onClose={() => setConfirmPush(null)}
+          onConfirm={() => handlePushToProject(confirmPush)}
         />
       )}
     </AdminLayout>

@@ -106,6 +106,13 @@ const useProjectStore = create(
     }))
   },
 
+  /** Delete a project by id */
+  deleteProject: (projectId) => {
+    set((state) => ({
+      projects: state.projects.filter((p) => p.id !== projectId),
+    }))
+  },
+
   // ── Intake Form Actions ────────────────────────────────────────────────────
 
   saveIntakeForm: (projectId, formData) => {
