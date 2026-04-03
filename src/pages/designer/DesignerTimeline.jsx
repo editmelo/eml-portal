@@ -285,13 +285,7 @@ export default function DesignerTimeline() {
         </div>
       </div>
 
-      {myProjects.length === 0 ? (
-        <Card>
-          <CardBody className="text-center py-16">
-            <p className="text-slate-400 text-sm">No projects assigned yet.</p>
-          </CardBody>
-        </Card>
-      ) : view === 'calendar' ? (
+      {view === 'calendar' ? (
         <Card>
           <CardBody>
             <CalendarView projects={myProjects} />
