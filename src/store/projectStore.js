@@ -62,7 +62,7 @@ const useProjectStore = create(
         if (p.id !== projectId) return p
         return {
           ...p,
-          status: PROJECT_STATUS.REVIEW,
+          status: PROJECT_STATUS.DRAFT_1,
           drafts: [...(p.drafts ?? []), draft],
         }
       }),
@@ -225,6 +225,12 @@ const useProjectStore = create(
   updateLead: (leadId, patch) => {
     set((state) => ({
       leads: state.leads.map((l) => (l.id === leadId ? { ...l, ...patch } : l)),
+    }))
+  },
+
+  deleteLead: (leadId) => {
+    set((state) => ({
+      leads: state.leads.filter((l) => l.id !== leadId),
     }))
   },
 
@@ -441,7 +447,7 @@ const useProjectStore = create(
 
   /** All active projects (for admin glance) */
   getActiveProjects: () =>
-    get().projects.filter((p) => p.status === PROJECT_STATUS.ACTIVE),
+    get().projects.filter((p) => p.status === PROJECT_STATUS.IN_PROGRESS),
 
   /** Revenue totals from invoices */
   getRevenueTotals: () => {

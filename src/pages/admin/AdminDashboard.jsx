@@ -83,8 +83,9 @@ export default function AdminDashboard() {
   const setFinancials  = useProjectStore((s) => s.setFinancials)
 
   const quote          = getDailyQuote()
-  const activeProjects = projects.filter((p) => p.status === 'Active' || p.status === 'Review')
-  const openLeads      = leads.filter((l) => !l.converted)
+  const DONE_STATUSES = ['Done', 'Archived', 'Dead']
+  const activeProjects = projects.filter((p) => !DONE_STATUSES.includes(p.status))
+  const openLeads      = leads.filter((l) => !['Done', 'Archived', 'Dead'].includes(l.status))
 
   const monthlyGoalPct = financials.goalMonthly > 0
     ? Math.min(100, Math.round((financials.monthlyRevenue / financials.goalMonthly) * 100))

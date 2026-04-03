@@ -7,45 +7,44 @@ export const ROLES = {
 
 // ─── Project Statuses ────────────────────────────────────────────────────────
 export const PROJECT_STATUS = {
-  LEAD:         'Lead',
-  ACTIVE:       'Active',
-  REVIEW:       'Review',
-  OFFBOARDING:  'Offboarding',
-  LOST:         'Lost',
+  NEW:                'New',
+  NOT_STARTED:        'Not Started',
+  CONSULTATION:       'Consultation',
+  PROJECT_PROPOSAL:   'Project Proposal',
+  SERVICE_AGREEMENT:  'Service Agreement',
+  INVOICE_DEPOSIT:    'Invoice - Deposit',
+  DEPOSIT_PAID:       'Deposit Paid',
+  KICK_OFF_CALL:      'Kick-Off Call',
+  DRAFT_1:            'Draft 1',
+  DRAFT_2:            'Draft 2',
+  FINAL_REVISIONS:    'Final Revisions',
+  INVOICE_REMAINDER:  'Invoice - Remainder',
+  LAUNCH:             'Launch',
+  IN_PROGRESS:        'In Progress',
+  DONE:               'Done',
+  ARCHIVED:           'Archived',
+  DEAD:               'Dead',
 }
 
 // Status display config: label, color classes
 export const STATUS_CONFIG = {
-  [PROJECT_STATUS.LEAD]: {
-    label: 'Lead',
-    bg: 'bg-amber-100',
-    text: 'text-amber-800',
-    dot: 'bg-amber-400',
-  },
-  [PROJECT_STATUS.ACTIVE]: {
-    label: 'Active',
-    bg: 'bg-emerald-100',
-    text: 'text-emerald-800',
-    dot: 'bg-emerald-400',
-  },
-  [PROJECT_STATUS.REVIEW]: {
-    label: 'Review',
-    bg: 'bg-blue-100',
-    text: 'text-blue-800',
-    dot: 'bg-blue-400',
-  },
-  [PROJECT_STATUS.OFFBOARDING]: {
-    label: 'Offboarding',
-    bg: 'bg-purple-100',
-    text: 'text-purple-800',
-    dot: 'bg-purple-400',
-  },
-  [PROJECT_STATUS.LOST]: {
-    label: 'Lost',
-    bg: 'bg-red-100',
-    text: 'text-red-800',
-    dot: 'bg-red-400',
-  },
+  [PROJECT_STATUS.NEW]:               { label: 'New',               bg: 'bg-brand-100',   text: 'text-brand-700',   dot: 'bg-brand-400' },
+  [PROJECT_STATUS.NOT_STARTED]:       { label: 'Not Started',       bg: 'bg-slate-100',   text: 'text-slate-600',   dot: 'bg-slate-400' },
+  [PROJECT_STATUS.CONSULTATION]:      { label: 'Consultation',      bg: 'bg-blue-100',    text: 'text-blue-800',    dot: 'bg-blue-400' },
+  [PROJECT_STATUS.PROJECT_PROPOSAL]:  { label: 'Project Proposal',  bg: 'bg-brand-100',   text: 'text-brand-700',   dot: 'bg-brand-400' },
+  [PROJECT_STATUS.SERVICE_AGREEMENT]: { label: 'Service Agreement', bg: 'bg-purple-100',  text: 'text-purple-800',  dot: 'bg-purple-400' },
+  [PROJECT_STATUS.INVOICE_DEPOSIT]:   { label: 'Invoice - Deposit', bg: 'bg-amber-100',   text: 'text-amber-800',   dot: 'bg-amber-400' },
+  [PROJECT_STATUS.DEPOSIT_PAID]:      { label: 'Deposit Paid',      bg: 'bg-emerald-100', text: 'text-emerald-800', dot: 'bg-emerald-400' },
+  [PROJECT_STATUS.KICK_OFF_CALL]:     { label: 'Kick-Off Call',     bg: 'bg-brand-100',   text: 'text-brand-700',   dot: 'bg-brand-400' },
+  [PROJECT_STATUS.DRAFT_1]:           { label: 'Draft 1',           bg: 'bg-blue-100',    text: 'text-blue-800',    dot: 'bg-blue-400' },
+  [PROJECT_STATUS.DRAFT_2]:           { label: 'Draft 2',           bg: 'bg-blue-100',    text: 'text-blue-800',    dot: 'bg-blue-400' },
+  [PROJECT_STATUS.FINAL_REVISIONS]:   { label: 'Final Revisions',   bg: 'bg-amber-100',   text: 'text-amber-800',   dot: 'bg-amber-400' },
+  [PROJECT_STATUS.INVOICE_REMAINDER]: { label: 'Invoice - Remainder', bg: 'bg-amber-100', text: 'text-amber-800',   dot: 'bg-amber-400' },
+  [PROJECT_STATUS.LAUNCH]:            { label: 'Launch',            bg: 'bg-emerald-100', text: 'text-emerald-800', dot: 'bg-emerald-400' },
+  [PROJECT_STATUS.IN_PROGRESS]:       { label: 'In Progress',       bg: 'bg-brand-100',   text: 'text-brand-700',   dot: 'bg-brand-400' },
+  [PROJECT_STATUS.DONE]:              { label: 'Done',              bg: 'bg-emerald-100', text: 'text-emerald-800', dot: 'bg-emerald-400' },
+  [PROJECT_STATUS.ARCHIVED]:          { label: 'Archived',          bg: 'bg-slate-200',   text: 'text-slate-600',   dot: 'bg-slate-400' },
+  [PROJECT_STATUS.DEAD]:              { label: 'Dead',              bg: 'bg-red-100',     text: 'text-red-800',     dot: 'bg-red-400' },
 }
 
 // ─── Invoice Statuses ─────────────────────────────────────────────────────────

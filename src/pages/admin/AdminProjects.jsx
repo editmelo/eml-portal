@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AdminLayout from '../../components/layout/AdminLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import { DarkCard } from '../../components/ui/Card'
@@ -7,8 +7,8 @@ import Button from '../../components/ui/Button'
 import ProgressBar from '../../components/ui/ProgressBar'
 import useProjectStore from '../../store/projectStore'
 import useThemeStore from '../../store/themeStore'
-import { MOCK_USERS } from '../../lib/mockData'
-import { PROJECT_STATUS, ROLES } from '../../lib/constants'
+import { supabase } from '../../lib/supabase'
+import { PROJECT_STATUS } from '../../lib/constants'
 import { formatCurrency, formatDate } from '../../lib/utils'
 import { cn } from '../../lib/utils'
 import {
@@ -19,20 +19,14 @@ import toast from 'react-hot-toast'
 
 const STATUS_OPTIONS = Object.values(PROJECT_STATUS)
 
-const CLIENTS   = MOCK_USERS.filter((u) => u.role === ROLES.CLIENT)
-const DESIGNERS = MOCK_USERS.filter((u) => u.role === ROLES.DESIGNER || u.role === ROLES.ADMIN)
-
-function getClientName(clientId)    { return MOCK_USERS.find((u) => u.id === clientId)?.name ?? '—' }
-function getDesignerName(designerId){ return MOCK_USERS.find((u) => u.id === designerId)?.name ?? 'Unknown' }
-
 // ── New Project Modal ─────────────────────────────────────────────────────────
-function NewProjectModal({ onClose, isDark }) {
+function NewProjectModal({ onClose, isDark, clients, designers }) {
   const createProject = useProjectStore((s) => s.createProject)
   const [form, setForm] = useState({
     name:           '',
     clientId:       '',
     designerIds:    [],
-    status:         PROJECT_STATUS.ACTIVE,
+    status:         PROJECT_STATUS.NEW,
     startDate:      '',
     dueDate:        '',
     projectValue:   '',
@@ -93,7 +87,7 @@ function NewProjectModal({ onClose, isDark }) {
               <label className={LABEL}>Client</label>
               <select className={SELECT} value={form.clientId} onChange={(e) => set_('clientId', e.target.value)}>
                 <option value="">— No client yet —</option>
-                {CLIENTS.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name || c.email}</option>)}
               </select>
             </div>
             <div>
@@ -121,7 +115,7 @@ function NewProjectModal({ onClose, isDark }) {
             <div className="col-span-2">
               <label className={LABEL}>Assign Designer(s)</label>
               <div className="flex flex-wrap gap-2 mt-1">
-                {DESIGNERS.map((d) => (
+                {designers.map((d) => (
                   <button
                     key={d.id}
                     type="button"
@@ -133,7 +127,7 @@ function NewProjectModal({ onClose, isDark }) {
                         : 'border-admin-border text-slate-400 hover:border-brand-400 hover:text-slate-200'
                     )}
                   >
-                    <User size={10} /> {d.name}{d.role === ROLES.ADMIN ? ' (You)' : ''}
+                    <User size={10} /> {d.name || d.email}{d.role === 'ADMIN' ? ' (You)' : ''}
                   </button>
                 ))}
               </div>
@@ -161,7 +155,7 @@ function NewProjectModal({ onClose, isDark }) {
 }
 
 // ── Edit Project Modal ────────────────────────────────────────────────────────
-function EditProjectModal({ project, onClose, isDark }) {
+function EditProjectModal({ project, onClose, isDark, clients, designers }) {
   const updateProject = useProjectStore((s) => s.updateProject)
   const [form, setForm] = useState({
     name:           project.name,
@@ -229,7 +223,7 @@ function EditProjectModal({ project, onClose, isDark }) {
               <label className={LABEL}>Client</label>
               <select className={SELECT} value={form.clientId} onChange={(e) => set_('clientId', e.target.value)}>
                 <option value="">— No client —</option>
-                {CLIENTS.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name || c.email}</option>)}
               </select>
             </div>
             <div>
@@ -261,7 +255,7 @@ function EditProjectModal({ project, onClose, isDark }) {
             <div className="col-span-2">
               <label className={LABEL}>Assign Designer(s)</label>
               <div className="flex flex-wrap gap-2 mt-1">
-                {DESIGNERS.map((d) => (
+                {designers.map((d) => (
                   <button
                     key={d.id}
                     type="button"
@@ -273,7 +267,7 @@ function EditProjectModal({ project, onClose, isDark }) {
                         : 'border-admin-border text-slate-400 hover:border-brand-400 hover:text-slate-200'
                     )}
                   >
-                    <User size={10} /> {d.name}{d.role === ROLES.ADMIN ? ' (You)' : ''}
+                    <User size={10} /> {d.name || d.email}{d.role === 'ADMIN' ? ' (You)' : ''}
                   </button>
                 ))}
               </div>
@@ -301,14 +295,14 @@ function EditProjectModal({ project, onClose, isDark }) {
 }
 
 // ── Project Row ───────────────────────────────────────────────────────────────
-function ProjectRow({ project, isDark }) {
+function ProjectRow({ project, isDark, profiles, clients, designers }) {
   const [expanded,  setExpanded]  = useState(false)
   const [editOpen,  setEditOpen]  = useState(false)
   const intakeForm = useProjectStore((s) => s.intakeForms[project.id])
   const brief      = useProjectStore((s) => s.projectBriefs[project.id])
 
-  const clientName    = getClientName(project.clientId)
-  const designerNames = (project.designerIds ?? []).map(getDesignerName).join(', ') || 'Unassigned'
+  const clientName    = profiles.find((u) => u.id === project.clientId)?.name || '—'
+  const designerNames = (project.designerIds ?? []).map((id) => profiles.find((u) => u.id === id)?.name || 'Unknown').join(', ') || 'Unassigned'
 
   return (
     <>
@@ -319,6 +313,11 @@ function ProjectRow({ project, isDark }) {
               <div className="flex items-center gap-3 mb-1 flex-wrap">
                 <h3 className="text-slate-100 font-semibold">{project.name}</h3>
                 <StatusBadge status={project.status} />
+                {project.leadId && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-medium">
+                    From Lead
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap gap-3 text-xs text-slate-500">
                 <span className="flex items-center gap-1"><User size={11} /> {clientName}</span>
@@ -409,7 +408,7 @@ function ProjectRow({ project, isDark }) {
         )}
       </DarkCard>
 
-      {editOpen && <EditProjectModal project={project} onClose={() => setEditOpen(false)} isDark={isDark} />}
+      {editOpen && <EditProjectModal project={project} onClose={() => setEditOpen(false)} isDark={isDark} clients={clients} designers={designers} />}
     </>
   )
 }
@@ -422,23 +421,39 @@ export default function AdminProjects() {
   const [query,     setQuery]     = useState('')
   const [status,    setStatus]    = useState('All')
   const [newOpen,   setNewOpen]   = useState(false)
+  const [profiles,  setProfiles]  = useState([])
+
+  useEffect(() => {
+    supabase.from('profiles').select('*').then(({ data }) => {
+      if (data) setProfiles(data)
+    })
+  }, [])
+
+  const clients   = profiles.filter((p) => p.role === 'CLIENT')
+  const designers = profiles.filter((p) => p.role === 'DESIGNER' || p.role === 'ADMIN')
+
+  const getProfileName = (id) => profiles.find((u) => u.id === id)?.name || '—'
+
+  const activeCount = projects.filter((p) => p.status === 'In Progress').length
 
   const filtered = projects.filter((p) => {
     const matchStatus = status === 'All' || p.status === status
     const q = query.toLowerCase()
     const matchQuery = !q
       || p.name.toLowerCase().includes(q)
-      || getClientName(p.clientId).toLowerCase().includes(q)
-      || (p.designerIds ?? []).some((id) => getDesignerName(id).toLowerCase().includes(q))
+      || getProfileName(p.clientId).toLowerCase().includes(q)
+      || (p.designerIds ?? []).some((id) => getProfileName(id).toLowerCase().includes(q))
     return matchStatus && matchQuery
   })
+
+  const SELECT_CLASS = 'rounded-lg border border-admin-border bg-admin-surface text-slate-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400/30'
 
   return (
     <AdminLayout>
       <PageHeader
         dark={isDark}
         title="Projects"
-        subtitle={`${projects.length} total · ${projects.filter((p) => p.status === 'Active').length} active`}
+        subtitle={`${projects.length} total · ${activeCount} in progress`}
         actions={
           <Button size="sm" icon={<Plus size={14} />} onClick={() => setNewOpen(true)}>
             New Project
@@ -458,24 +473,18 @@ export default function AdminProjects() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <div className="flex gap-1 p-1 bg-admin-surface border border-admin-border rounded-lg">
-          {['All', ...STATUS_OPTIONS].map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatus(s)}
-              className={cn(
-                'px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-                status === s ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-slate-200'
-              )}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
+        <select
+          className={SELECT_CLASS}
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+        >
+          <option value="All">All Statuses</option>
+          {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
       </div>
 
       <div className="space-y-3">
-        {filtered.map((p) => <ProjectRow key={p.id} project={p} isDark={isDark} />)}
+        {filtered.map((p) => <ProjectRow key={p.id} project={p} isDark={isDark} profiles={profiles} clients={clients} designers={designers} />)}
         {filtered.length === 0 && (
           <DarkCard className="p-8 text-center">
             <p className="text-slate-500 text-sm">No projects match your filters.</p>
@@ -483,7 +492,7 @@ export default function AdminProjects() {
         )}
       </div>
 
-      {newOpen && <NewProjectModal onClose={() => setNewOpen(false)} isDark={isDark} />}
+      {newOpen && <NewProjectModal onClose={() => setNewOpen(false)} isDark={isDark} clients={clients} designers={designers} />}
     </AdminLayout>
   )
 }
