@@ -85,7 +85,7 @@ export default function AdminDashboard() {
   const quote          = getDailyQuote()
   const DONE_STATUSES = ['Done', 'Archived', 'Dead']
   const activeProjects = projects.filter((p) => !DONE_STATUSES.includes(p.status))
-  const openLeads      = leads.filter((l) => !['Done', 'Archived', 'Dead'].includes(l.status))
+  const openLeads      = leads.filter((l) => !['Booked', 'Pushed to Project', 'Lost'].includes(l.status))
 
   const monthlyGoalPct = financials.goalMonthly > 0
     ? Math.min(100, Math.round((financials.monthlyRevenue / financials.goalMonthly) * 100))

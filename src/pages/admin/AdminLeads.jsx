@@ -42,23 +42,14 @@ function ConfirmPushModal({ lead, onClose, onConfirm }) {
 }
 
 const LEAD_STATUSES = [
-  'New',
-  'Not Started',
-  'Consultation',
-  'Project Proposal',
-  'Service Agreement',
-  'Invoice - Deposit',
-  'Deposit Paid',
-  'Kick-Off Call',
-  'Draft 1',
-  'Draft 2',
-  'Final Revisions',
-  'Invoice - Remainder',
-  'Launch',
-  'In Progress',
-  'Done',
-  'Archived',
-  'Dead',
+  'New Lead',
+  '1st Call',
+  'Follow-up 1',
+  'Follow-up 2',
+  'Follow-up 3',
+  'Booked',
+  'Pushed to Project',
+  'Lost',
 ]
 
 const LEAD_SOURCES = [
@@ -74,13 +65,13 @@ const LEAD_SOURCES = [
   'Referral',
 ]
 
-const EMPTY_FORM = { name: '', company: '', email: '', service: '', potentialValue: '', source: 'Website', status: 'New' }
+const EMPTY_FORM = { name: '', company: '', email: '', service: '', potentialValue: '', source: 'Website', status: 'New Lead' }
 
 function LeadModal({ onClose, onSave, lead }) {
   const isEdit = !!lead
   const [form, setForm] = useState(
     isEdit
-      ? { name: lead.name, company: lead.company || '', email: lead.email || '', service: lead.service || '', potentialValue: lead.potentialValue || '', source: lead.source || 'Website', status: lead.status || 'New' }
+      ? { name: lead.name, company: lead.company || '', email: lead.email || '', service: lead.service || '', potentialValue: lead.potentialValue || '', source: lead.source || 'Website', status: lead.status || 'New Lead' }
       : EMPTY_FORM
   )
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
@@ -151,23 +142,14 @@ function LeadModal({ onClose, onSave, lead }) {
 }
 
 const STATUS_BADGE = {
-  'New':                 'brand',
-  'Not Started':         'default',
-  'Consultation':        'info',
-  'Project Proposal':    'brand',
-  'Service Agreement':   'purple',
-  'Invoice - Deposit':   'warning',
-  'Deposit Paid':        'success',
-  'Kick-Off Call':       'brand',
-  'Draft 1':             'info',
-  'Draft 2':             'info',
-  'Final Revisions':     'warning',
-  'Invoice - Remainder': 'warning',
-  'Launch':              'success',
-  'In Progress':         'brand',
-  'Done':                'success',
-  'Archived':            'dark',
-  'Dead':                'danger',
+  'New Lead':           'default',
+  '1st Call':           'warning',
+  'Follow-up 1':        'warning',
+  'Follow-up 2':        'warning',
+  'Follow-up 3':        'warning',
+  'Booked':             'success',
+  'Pushed to Project':  'brand',
+  'Lost':               'danger',
 }
 
 export default function AdminLeads() {
@@ -184,8 +166,9 @@ export default function AdminLeads() {
   const [editingLead, setEditingLead] = useState(null)
   const [confirmPush, setConfirmPush] = useState(null)
 
-  const DONE_STATUSES = ['Done', 'Archived', 'Dead']
-  const openLeads = leads.filter((l) => !DONE_STATUSES.includes(l.status))
+  const CLOSED_STATUSES = ['Booked', 'Pushed to Project', 'Lost']
+  const visibleLeads = leads.filter((l) => l.status !== 'Pushed to Project')
+  const openLeads = leads.filter((l) => !CLOSED_STATUSES.includes(l.status))
   const totalPotential = openLeads.reduce((s, l) => s + l.potentialValue, 0)
 
   const handleStatusChange = (leadId, newStatus) => {
@@ -212,7 +195,8 @@ export default function AdminLeads() {
       tags:           lead.service ? [lead.service] : [],
       leadId:         lead.id,
     })
-    updateLead(lead.id, { projectId: project.id })
+    const previousStatus = lead.status
+    updateLead(lead.id, { projectId: project.id, status: 'Pushed to Project' })
     toast.success(
       (t) => (
         <div className="flex items-center gap-3">
@@ -220,9 +204,9 @@ export default function AdminLeads() {
           <button
             onClick={() => {
               deleteProject(project.id)
-              updateLead(lead.id, { projectId: undefined })
+              updateLead(lead.id, { projectId: undefined, status: previousStatus })
               toast.dismiss(t.id)
-              toast.success('Undone — project removed')
+              toast.success('Undone — lead restored')
             }}
             className="flex items-center gap-1 px-2 py-1 rounded bg-white/10 text-xs font-medium hover:bg-white/20 transition-colors shrink-0"
           >
@@ -263,7 +247,7 @@ export default function AdminLeads() {
               </tr>
             </thead>
             <tbody>
-              {leads.map((lead) => (
+              {visibleLeads.map((lead) => (
                 <tr
                   key={lead.id}
                   className="border-b border-admin-border/50 hover:bg-admin-surface/50 transition-colors"
@@ -320,11 +304,11 @@ export default function AdminLeads() {
                           <button
                             onClick={() => {
                               deleteProject(lead.projectId)
-                              updateLead(lead.id, { projectId: undefined })
-                              toast.success('Project unlinked and removed')
+                              updateLead(lead.id, { projectId: undefined, status: 'Booked' })
+                              toast.success('Undone — lead restored to Booked')
                             }}
                             className="p-1 rounded-md text-slate-600 hover:text-red-400 hover:bg-red-900/20 transition-colors"
-                            title="Unlink and remove project"
+                            title="Undo push to project"
                           >
                             <Undo2 size={11} />
                           </button>
