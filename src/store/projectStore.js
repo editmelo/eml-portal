@@ -143,7 +143,7 @@ const useProjectStore = create(
   // ── Client Todo Actions ────────────────────────────────────────────────────
 
   addTodo: (projectId, text) => {
-    const todo = { id: `todo_${Date.now()}`, text, done: false, createdAt: new Date().toISOString() }
+    const todo = { id: `todo_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`, text, done: false, createdAt: new Date().toISOString() }
     set((state) => ({
       todos: {
         ...state.todos,
@@ -464,23 +464,27 @@ const useProjectStore = create(
   }),
     {
       name: 'eml_project_store',
-      version: 3,
-      migrate: (_persistedState, _fromVersion) => ({
-        projects:         [],
-        leads:            [],
-        invoices:         MOCK_INVOICES,
-        payroll:          [],
-        intakeForms:      {},
-        todos:            {},
-        designerTodos:    {},
-        projectNotes:     {},
-        clientProfiles:   {},
-        designerProfiles: {},
-        adminTodos:       [],
-        projectBriefs:    {},
-        folders:          [],
-        financials:       { monthlyRevenue: 0, monthlyExpenses: 0, ytdRevenue: 0, ytdExpenses: 0, goalMonthly: 5000, goalYearly: 60000, monthlyBreakdown: [] },
-      }),
+      version: 4,
+      migrate: (persistedState, fromVersion) => {
+        if (fromVersion < 3) {
+          return {
+            projects: [], leads: [], invoices: MOCK_INVOICES, payroll: [],
+            intakeForms: {}, todos: {}, designerTodos: {}, projectNotes: {},
+            clientProfiles: {}, designerProfiles: {}, adminTodos: [],
+            projectBriefs: {}, folders: [],
+            financials: { monthlyRevenue: 0, monthlyExpenses: 0, ytdRevenue: 0, ytdExpenses: 0, goalMonthly: 5000, goalYearly: 60000, monthlyBreakdown: [] },
+          }
+        }
+        // v3→v4: fix duplicate todo IDs caused by Date.now() in sync loops
+        const fixedTodos = {}
+        for (const [key, list] of Object.entries(persistedState.todos ?? {})) {
+          fixedTodos[key] = (list ?? []).map((t, i) => ({
+            ...t,
+            id: `todo_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 9)}`,
+          }))
+        }
+        return { ...persistedState, todos: fixedTodos }
+      },
       partialize: (state) => ({
         projects:        state.projects,
         leads:           state.leads,
