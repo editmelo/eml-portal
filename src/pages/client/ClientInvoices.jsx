@@ -7,7 +7,7 @@ import Button from '../../components/ui/Button'
 import useAuthStore, { selectUser } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
 import { formatCurrency, formatDate } from '../../lib/utils'
-import { fetchInvoicesFromDB, subscribeToInvoices } from '../../lib/quickbooks'
+import { fetchInvoicesFromDB, subscribeToInvoices, getQBConnectionStatus } from '../../lib/quickbooks'
 import { CreditCard, CheckCircle2, ExternalLink, Loader2 } from 'lucide-react'
 
 const STATUS_VARIANT = { Paid: 'success', Pending: 'warning', Overdue: 'danger', Draft: 'default' }
@@ -18,10 +18,16 @@ export default function ClientInvoices() {
   // Try Supabase first, fallback to Zustand store
   const zustandInvoices = useProjectStore((s) => s.invoices)
   const [dbInvoices, setDbInvoices] = useState(null)
+  const [qbConnected, setQbConnected] = useState(false)
   const [loading, setLoading]       = useState(true)
 
   useEffect(() => {
     if (!user?.id) return
+
+    // Check QB connection status independently of invoice data
+    getQBConnectionStatus()
+      .then((res) => setQbConnected(res.connected === true))
+      .catch(() => setQbConnected(false))
 
     fetchInvoicesFromDB(user.id)
       .then((data) => {
@@ -29,7 +35,6 @@ export default function ClientInvoices() {
         setLoading(false)
       })
       .catch(() => {
-        // Supabase table might not exist yet — fall back to Zustand
         setDbInvoices(null)
         setLoading(false)
       })
@@ -69,17 +74,19 @@ export default function ClientInvoices() {
       <PageHeader title="Invoices" subtitle="Your billing history and outstanding balances." className="mb-6" />
 
       {/* QuickBooks status */}
-      {useSupabase && (
+      {qbConnected && !loading && (
         <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/40 mb-8">
           <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
           <p className="text-sm text-emerald-800 dark:text-emerald-300">
             <span className="font-semibold">Invoices synced with QuickBooks.</span>{' '}
-            Click "Pay Now" to make a payment securely through Intuit.
+            {normalized.length > 0
+              ? 'Click "Pay Now" to make a payment securely through Intuit.'
+              : 'No invoices have been issued yet.'}
           </p>
         </div>
       )}
 
-      {!useSupabase && !loading && (
+      {!qbConnected && !loading && (
         <div className="flex items-center gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/40 mb-8">
           <CreditCard size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
           <p className="text-sm text-blue-800 dark:text-blue-300">
