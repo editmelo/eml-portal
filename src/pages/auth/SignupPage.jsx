@@ -14,7 +14,8 @@ import toast from 'react-hot-toast'
 export default function SignupPage() {
   const navigate        = useNavigate()
   const [searchParams]  = useSearchParams()
-  const register   = useAuthStore((s) => s.register)
+  const register          = useAuthStore((s) => s.register)
+  const registerFromInvite = useAuthStore((s) => s.registerFromInvite)
   const clearError = useAuthStore((s) => s.clearError)
   const isLoading       = useAuthStore((s) => s.isLoading)
   const error           = useAuthStore((s) => s.error)
@@ -50,6 +51,7 @@ export default function SignupPage() {
 
   const signupRole = inviteRole ?? 'CLIENT'
   const isDesigner = signupRole === 'DESIGNER'
+  const isInvite   = !!inviteId && inviteReady && !!inviteRole
 
   // Redirect if already logged in
   useEffect(() => {
@@ -63,33 +65,43 @@ export default function SignupPage() {
     setFieldError('')
     clearError()
 
-    if (!name.trim()) { setFieldError('Please enter your name.'); return }
+    if (!isInvite && !name.trim()) { setFieldError('Please enter your name.'); return }
+    if (!isInvite && !email.trim()) { setFieldError('Please enter your email.'); return }
     if (password.length < 6) { setFieldError('Password must be at least 6 characters.'); return }
     if (password !== confirm) { setFieldError('Passwords do not match.'); return }
 
-    const result = await register(name, email, password, signupRole)
-    if (result.success) {
-      // Mark the invite as accepted
-      if (inviteId) {
-        supabase.from('invites').update({ status: 'accepted' }).eq('id', inviteId)
-          .then(({ error: iErr }) => { if (iErr) console.error('[signup] invite status update:', iErr.message) })
+    if (isInvite) {
+      // Invite flow: use edge function (auto-confirms email, no verification needed)
+      const result = await registerFromInvite(inviteId, password)
+      if (result.success) {
+        logActivity({
+          actorId:     'system',
+          actorName:   name,
+          actorRole:   signupRole,
+          action:      'invite_accepted',
+          description: `accepted their ${isDesigner ? 'designer' : 'client'} invite and created an account`,
+        })
+        toast.success('Welcome! Your account has been created.')
+        navigate(ROLE_HOME[result.role] ?? '/client', { replace: true })
       }
-      if (result.needsConfirmation) {
-        setConfirmed(true)
-        return
+    } else {
+      // Organic signup: normal registration (requires email confirmation)
+      const result = await register(name, email, password, signupRole)
+      if (result.success) {
+        if (result.needsConfirmation) {
+          setConfirmed(true)
+          return
+        }
+        logActivity({
+          actorId:     'system',
+          actorName:   name,
+          actorRole:   signupRole,
+          action:      'profile_updated',
+          description: 'created a new client account',
+        })
+        toast.success('Welcome! Your account has been created.')
+        navigate(ROLE_HOME[result.role] ?? '/client', { replace: true })
       }
-      // Log the signup / invite acceptance
-      logActivity({
-        actorId:     'system',
-        actorName:   name,
-        actorRole:   signupRole,
-        action:      inviteId ? 'invite_accepted' : 'profile_updated',
-        description: inviteId
-          ? `accepted their ${signupRole === 'DESIGNER' ? 'designer' : 'client'} invite and created an account`
-          : 'created a new client account',
-      })
-      toast.success('Welcome! Your account has been created.')
-      navigate(ROLE_HOME[result.role] ?? '/client', { replace: true })
     }
   }
 
@@ -106,7 +118,7 @@ export default function SignupPage() {
 
       <div className="relative z-50 flex flex-col items-center w-full">
 
-        {/* Email confirmation screen */}
+        {/* Email confirmation screen (organic signup only) */}
         {confirmed && (
           <div
             className="w-full max-w-sm rounded-2xl p-8 border border-white/20 text-center"
@@ -137,10 +149,16 @@ export default function SignupPage() {
           </a>
           <div className="text-center">
             <h1 className="text-xl font-bold text-white tracking-tight">
-              {isDesigner ? 'Create your designer account' : 'Create your client account'}
+              {isInvite
+                ? `Welcome, ${name.split(' ')[0]}!`
+                : isDesigner ? 'Create your designer account' : 'Create your client account'
+              }
             </h1>
             <p className="text-sm text-slate-400 mt-0.5">
-              {isDesigner ? 'Sign up to access your Edit Me Lo designer portal' : 'Sign up to access your Edit Me Lo client portal'}
+              {isInvite
+                ? 'Create a password to get started'
+                : isDesigner ? 'Sign up to access your Edit Me Lo designer portal' : 'Sign up to access your Edit Me Lo client portal'
+              }
             </p>
           </div>
         </div>
@@ -162,39 +180,57 @@ export default function SignupPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* Name */}
-            <div className="space-y-1.5">
-              <label htmlFor="name" className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Full Name
-              </label>
-              <input
-                id="name"
-                type="text"
-                required
-                autoComplete="name"
-                value={name}
-                onChange={(e) => { setName(e.target.value); setFieldError('') }}
-                className="admin-input"
-                placeholder="Jordan Rivera"
-              />
-            </div>
+            {isInvite ? (
+              /* ── Invite flow: show name & email as read-only info ── */
+              <div className="space-y-3 mb-2">
+                <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-white/10 bg-white/5">
+                  <div className="h-9 w-9 rounded-full bg-[#124F9E]/40 flex items-center justify-center text-sm font-bold text-white shrink-0">
+                    {name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{name}</p>
+                    <p className="text-xs text-slate-400 truncate">{email}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ── Organic signup: editable name & email fields ── */
+              <>
+                {/* Name */}
+                <div className="space-y-1.5">
+                  <label htmlFor="name" className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Full Name
+                  </label>
+                  <input
+                    id="name"
+                    type="text"
+                    required
+                    autoComplete="name"
+                    value={name}
+                    onChange={(e) => { setName(e.target.value); setFieldError('') }}
+                    className="admin-input"
+                    placeholder="Jordan Rivera"
+                  />
+                </div>
 
-            {/* Email */}
-            <div className="space-y-1.5">
-              <label htmlFor="email" className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setFieldError(''); clearError() }}
-                className="admin-input"
-                placeholder="you@example.com"
-              />
-            </div>
+                {/* Email */}
+                <div className="space-y-1.5">
+                  <label htmlFor="email" className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setFieldError(''); clearError() }}
+                    className="admin-input"
+                    placeholder="you@example.com"
+                  />
+                </div>
+              </>
+            )}
 
             {/* Password */}
             <div className="space-y-1.5">
@@ -271,7 +307,7 @@ export default function SignupPage() {
                 ? <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 : <UserPlus size={16} />
               }
-              {isLoading ? 'Creating account…' : 'Create Account'}
+              {isLoading ? 'Creating account…' : isInvite ? 'Get Started' : 'Create Account'}
             </button>
           </form>
 
@@ -283,7 +319,7 @@ export default function SignupPage() {
             </Link>
           </p>
 
-          {!isDesigner && (
+          {!isDesigner && !isInvite && (
             <p className="mt-3 text-center text-[11px] text-slate-600">
               Designers join by invite only.{' '}
               <a href="https://www.editmelo.com" target="_blank" rel="noopener noreferrer" className="text-[#47C9F3]/70 hover:text-[#47C9F3] transition-colors">

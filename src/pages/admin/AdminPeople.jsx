@@ -19,6 +19,8 @@ import {
 import toast from 'react-hot-toast'
 import { sendInviteEmail } from '../../lib/emailService'
 import { supabase } from '../../lib/supabase'
+import useAuthStore, { selectUser } from '../../store/authStore'
+import { logActivity } from '../../store/activityStore'
 
 function getProjects(userId, projects) {
   return projects.filter(
@@ -507,6 +509,7 @@ function PendingInvites({ isDark }) {
   const invites      = useInviteStore((s) => s.invites)
   const cancelInvite = useInviteStore((s) => s.cancelInvite)
   const resendInvite = useInviteStore((s) => s.resendInvite)
+  const user         = useAuthStore(selectUser)
 
   const pending = invites.filter((i) => i.status === 'pending')
   if (pending.length === 0) return null
@@ -549,13 +552,30 @@ function PendingInvites({ isDark }) {
                 onClick={async () => {
                   resendInvite(inv.id)
                   await sendInviteEmail({ role: inv.role, ownerName: inv.ownerName, email: inv.email, companyName: inv.companyName, message: inv.message, inviteId: inv.id })
+                  logActivity({
+                    actorId:     user?.id,
+                    actorName:   user?.name ?? 'Admin',
+                    actorRole:   user?.role ?? 'ADMIN',
+                    action:      'invite_resent',
+                    description: `resent ${inv.role === 'DESIGNER' ? 'designer' : 'client'} invite to ${inv.ownerName} (${inv.email})`,
+                  })
                 }}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-admin-border text-[11px] text-slate-400 hover:text-brand-400 hover:border-brand-400/50 transition-colors"
               >
                 <RefreshCw size={10} /> Resend
               </button>
               <button
-                onClick={() => { cancelInvite(inv.id); toast.success('Invite cancelled') }}
+                onClick={() => {
+                  cancelInvite(inv.id)
+                  logActivity({
+                    actorId:     user?.id,
+                    actorName:   user?.name ?? 'Admin',
+                    actorRole:   user?.role ?? 'ADMIN',
+                    action:      'invite_cancelled',
+                    description: `cancelled ${inv.role === 'DESIGNER' ? 'designer' : 'client'} invite for ${inv.ownerName} (${inv.email})`,
+                  })
+                  toast.success('Invite cancelled')
+                }}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-admin-border text-[11px] text-slate-400 hover:text-red-400 hover:border-red-400/50 transition-colors"
               >
                 <Ban size={10} /> Cancel

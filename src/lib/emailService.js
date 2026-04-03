@@ -88,6 +88,7 @@ export async function sendInviteEmail({ role, ownerName, email, companyName, mes
     company:    companyName,
     role:       role === 'DESIGNER' ? 'Designer' : 'Client',
     message:    fullMessage,
+    signup_url: signupUrl,
   })
 
   toast.success(`Invite sent to ${email}`, {

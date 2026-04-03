@@ -10,6 +10,7 @@ import {
 const ACTION_ICON = {
   invite_sent:      UserPlus,
   invite_accepted:  UserPlus,
+  invite_resent:    UserPlus,
   invite_cancelled: UserPlus,
   project_created:  FolderKanban,
   project_status:   FolderKanban,
@@ -27,6 +28,7 @@ const ACTION_ICON = {
 const ACTION_COLOR = {
   invite_sent:      'text-cyan-400 bg-cyan-500/10',
   invite_accepted:  'text-emerald-400 bg-emerald-500/10',
+  invite_resent:    'text-amber-400 bg-amber-500/10',
   invite_cancelled: 'text-red-400 bg-red-500/10',
   project_created:  'text-brand-400 bg-brand-500/10',
   project_status:   'text-amber-400 bg-amber-500/10',

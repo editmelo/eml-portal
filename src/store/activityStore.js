@@ -21,6 +21,7 @@ import { supabase } from '../lib/supabase'
 const EVENT_LABELS = {
   invite_sent:          'Invite Sent',
   invite_accepted:      'Invite Accepted',
+  invite_resent:        'Invite Resent',
   invite_cancelled:     'Invite Cancelled',
   project_created:      'Project Created',
   project_status:       'Status Changed',

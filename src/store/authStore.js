@@ -108,7 +108,46 @@ const useAuthStore = create((set, get) => ({
   },
 
   /**
-   * Register a new account.
+   * Register from an invite — calls the accept-invite edge function which
+   * creates a pre-confirmed user (no email verification needed).
+   * Returns { success, role?, email?, error? }
+   */
+  registerFromInvite: async (inviteId, password) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke('accept-invite', {
+        body: { inviteId, password },
+      })
+      if (fnErr) {
+        const msg = fnErr.message || 'Failed to create account'
+        set({ isLoading: false, error: msg })
+        return { success: false, error: msg }
+      }
+      if (data?.error) {
+        set({ isLoading: false, error: data.error })
+        return { success: false, error: data.error }
+      }
+      // Sign in immediately with the new credentials
+      const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password,
+      })
+      if (signInErr) {
+        set({ isLoading: false, error: signInErr.message })
+        return { success: false, error: signInErr.message }
+      }
+      const user = shapeUser(signInData.user)
+      set({ user, isAuthenticated: true, isLoading: false, error: null })
+      return { success: true, role: user.role, email: data.email }
+    } catch (err) {
+      const msg = err.message || 'Something went wrong'
+      set({ isLoading: false, error: msg })
+      return { success: false, error: msg }
+    }
+  },
+
+  /**
+   * Register a new account (organic signup — requires email confirmation).
    * @param {string} name
    * @param {string} email
    * @param {string} password
