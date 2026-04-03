@@ -6,7 +6,7 @@ import Button from '../../components/ui/Button'
 import ProgressBar from '../../components/ui/ProgressBar'
 import useAuthStore, { selectUser } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
-import { CheckCircle2, ChevronRight, ChevronLeft, Edit2 } from 'lucide-react'
+import { CheckCircle2, ChevronRight, ChevronLeft, Edit2, Save } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatDate } from '../../lib/utils'
 
@@ -182,10 +182,11 @@ export default function ClientOnboarding() {
   const projectId = project?.id ?? `guest_${user?.id}`
 
   const existing = getIntakeForm(projectId)
+  const isDraft  = existing?.draft === true
 
-  const [step,      setStep]      = useState(1)
-  const [editing,   setEditing]   = useState(!existing)
-  const [form,      setForm]      = useState(existing ?? EMPTY_FORM)
+  const [step,      setStep]      = useState(isDraft ? (existing.lastStep ?? 1) : 1)
+  const [editing,   setEditing]   = useState(!existing || isDraft)
+  const [form,      setForm]      = useState(existing ? { ...EMPTY_FORM, ...existing } : EMPTY_FORM)
   const [attempted, setAttempted] = useState(false)
 
   const set_ = (field, val) => setForm((f) => ({ ...f, [field]: val }))
@@ -208,17 +209,24 @@ export default function ClientOnboarding() {
   const back = () => { setAttempted(false); setStep((s) => Math.max(s - 1, 1)) }
 
   const handleSubmit = () => {
-    saveIntakeForm(projectId, form)
+    // Remove draft fields before final submission
+    const { draft, lastStep, savedAt, ...cleanForm } = form
+    saveIntakeForm(projectId, cleanForm)
 
     // Auto-generate a structured project brief visible to admin + designer (not client)
-    saveProjectBrief(projectId, generateProjectBrief(form))
+    saveProjectBrief(projectId, generateProjectBrief(cleanForm))
 
     toast.success('Intake form saved! Your information is on file.')
     setEditing(false)
   }
 
+  const handleSaveDraft = () => {
+    saveIntakeForm(projectId, { ...form, draft: true, lastStep: step, savedAt: new Date().toISOString() })
+    toast.success('Progress saved! You can continue anytime.')
+  }
+
   // ── Submitted view ────────────────────────────────────────────────────────
-  if (!editing && existing) {
+  if (!editing && existing && !isDraft) {
     return (
       <PortalLayout>
         <div className="flex items-start justify-between mb-8">
@@ -577,15 +585,20 @@ export default function ClientOnboarding() {
             <Button variant="secondary" size="sm" icon={<ChevronLeft size={14} />} onClick={back} disabled={step === 1}>
               Back
             </Button>
-            {step < STEPS.length ? (
-              <Button size="sm" onClick={next} disabled={!isStepValid(step, form)}>
-                Next <ChevronRight size={14} className="ml-1" />
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" icon={<Save size={14} />} onClick={handleSaveDraft}>
+                Save & Continue Later
               </Button>
-            ) : (
-              <Button size="sm" onClick={handleSubmit}>
-                Submit Form
-              </Button>
-            )}
+              {step < STEPS.length ? (
+                <Button size="sm" onClick={next} disabled={!isStepValid(step, form)}>
+                  Next <ChevronRight size={14} className="ml-1" />
+                </Button>
+              ) : (
+                <Button size="sm" onClick={handleSubmit}>
+                  Submit Form
+                </Button>
+              )}
+            </div>
           </div>
         </CardBody>
       </Card>
