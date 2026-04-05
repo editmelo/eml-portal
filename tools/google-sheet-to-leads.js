@@ -24,28 +24,42 @@ const CONFIG = {
   WEBHOOK_URL: 'https://hlbhfzigspxotyofrors.supabase.co/functions/v1/ingest-lead',
 
   // Webhook secret (set this same value as LEAD_WEBHOOK_SECRET in Supabase Edge Function secrets)
-  WEBHOOK_SECRET: 'YOUR_SECRET_HERE',
+  WEBHOOK_SECRET: 'eml-leads-2026-secret',
 
   // Name of the sheet tab (usually "Sheet1" or "Form Responses 1")
   SHEET_NAME: 'Sheet1',
 }
 
-// ── COLUMN MAP — Map your sheet columns to lead fields ───────────────────────
-// Update the column numbers (1-based) to match YOUR sheet's layout.
-// Set to 0 or null to skip a field.
+// ── COLUMN MAP — Matches the Website Plug Sheet layout ───────────────────────
 const COLUMN_MAP = {
-  name:    2,  // Column B — full name
-  email:   3,  // Column C — email
-  phone:   4,  // Column D — phone number
-  company: 5,  // Column E — business/company name
-  service: 6,  // Column F — what service they're interested in
-  notes:   7,  // Column G — any additional notes/message
-  // Column A (1) is usually the timestamp
+  name:    2,   // Column B — name
+  email:   3,   // Column C — email
+  phone:   4,   // Column D — phone
+  company: 5,   // Column E — business name
+  service: 0,   // not a single column — built from description + pages
+  notes:   16,  // Column P — special requests
+}
+
+// Extra columns to pull into meta (passed along as extra context)
+// NOTE: Column M (13) = Existing/Listing URL, Column N (14) = Content Ready, etc.
+const EXTRA_COLUMNS = {
+  industry:       6,   // Column F
+  description:    7,   // Column G
+  pages:          8,   // Column H
+  pagesNeeded:    9,   // Column I
+  hasLogo:        10,  // Column J
+  brandColors:    11,  // Column K
+  referenceSites: 12,  // Column L
+  listingUrl:     13,  // Column M
+  contentReady:   14,  // Column N
+  socialLinks:    15,  // Column O
+  specialRequests:16,  // Column P
+  generatedPrompt:17,  // Column Q
 }
 
 // ── STATUS COLUMN — Tracks which rows have been sent ─────────────────────────
-// This script will add a "Sent to EML" status in this column
-const STATUS_COLUMN = 10  // Column J — change to an unused column in your sheet
+// Using Column R (18) — first empty column after Q
+const STATUS_COLUMN = 18  // Column R
 
 
 /**
@@ -92,19 +106,31 @@ function sendRow(sheet, row) {
   const name = getValue(COLUMN_MAP.name)
   if (!name) return  // Skip empty rows
 
+  // Build service string from description + pages needed
+  const description = getValue(EXTRA_COLUMNS.description)
+  const pagesNeeded = getValue(EXTRA_COLUMNS.pagesNeeded)
+  const service = [description, pagesNeeded ? (pagesNeeded + ' pages') : ''].filter(Boolean).join(' — ')
+
+  // Pull all the extra form fields into meta so nothing is lost
+  const meta = {
+    sheetRow: row,
+    sheetName: sheet.getName(),
+    submittedAt: String(sheet.getRange(row, 1).getValue()),
+  }
+  for (const [key, col] of Object.entries(EXTRA_COLUMNS)) {
+    const val = getValue(col)
+    if (val) meta[key] = val
+  }
+
   const payload = {
     name:    name,
     email:   getValue(COLUMN_MAP.email),
     phone:   getValue(COLUMN_MAP.phone),
     company: getValue(COLUMN_MAP.company),
-    service: getValue(COLUMN_MAP.service),
+    service: service,
     source:  'Website Form',
     notes:   getValue(COLUMN_MAP.notes),
-    meta: {
-      sheetRow: row,
-      sheetName: sheet.getName(),
-      submittedAt: String(sheet.getRange(row, 1).getValue()),  // Timestamp column
-    }
+    meta:    meta,
   }
 
   try {

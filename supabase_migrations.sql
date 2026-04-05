@@ -299,3 +299,40 @@ CREATE POLICY "Service role manages lead inbox"
   ON lead_inbox FOR ALL
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
+
+
+-- ============================================================================
+-- 9. LEADS TABLE — persistent lead management (syncs across all devices)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS leads (
+  id              text PRIMARY KEY,
+  name            text NOT NULL,
+  company         text,
+  email           text,
+  phone           text,
+  service         text,
+  potential_value numeric(10,2) DEFAULT 0,
+  source          text DEFAULT 'Website',
+  status          text DEFAULT 'New Lead',
+  notes           text,
+  project_id      text,
+  inbox_id        uuid REFERENCES lead_inbox(id),
+  submitted_at    timestamptz DEFAULT now(),
+  created_at      timestamptz DEFAULT now(),
+  updated_at      timestamptz DEFAULT now()
+);
+
+ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
+
+-- Only admins can manage leads
+DROP POLICY IF EXISTS "Admins can manage leads" ON leads;
+CREATE POLICY "Admins can manage leads"
+  ON leads FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'ADMIN')
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'ADMIN')
+  );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import AdminLayout from '../../components/layout/AdminLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import { DarkCard } from '../../components/ui/Card'
@@ -11,6 +11,41 @@ import { formatCurrency, formatDate } from '../../lib/utils'
 import { UserPlus, Pencil, Trash2, X, ChevronDown, Rocket, ExternalLink, Undo2, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
+
+// ── Helpers: Supabase ↔ local lead shape ─────────────────────────────────────
+const fromDb = (row) => ({
+  id:             row.id,
+  name:           row.name,
+  company:        row.company || '',
+  email:          row.email || '',
+  phone:          row.phone || '',
+  service:        row.service || '',
+  potentialValue: parseFloat(row.potential_value) || 0,
+  source:         row.source || 'Website',
+  status:         row.status || 'New Lead',
+  notes:          row.notes || '',
+  projectId:      row.project_id || undefined,
+  inboxId:        row.inbox_id || undefined,
+  submittedAt:    row.submitted_at,
+  converted:      row.status === 'Pushed to Project',
+})
+
+const toDb = (lead) => ({
+  id:              lead.id,
+  name:            lead.name,
+  company:         lead.company || null,
+  email:           lead.email || null,
+  phone:           lead.phone || null,
+  service:         lead.service || null,
+  potential_value: lead.potentialValue || 0,
+  source:          lead.source || 'Website',
+  status:          lead.status || 'New Lead',
+  notes:           lead.notes || null,
+  project_id:      lead.projectId || null,
+  inbox_id:        lead.inboxId || null,
+  submitted_at:    lead.submittedAt || new Date().toISOString(),
+  updated_at:      new Date().toISOString(),
+})
 
 // ── Confirm Push Modal ───────────────────────────────────────────────────────
 function ConfirmPushModal({ lead, onClose, onConfirm }) {
@@ -59,6 +94,8 @@ const LEAD_SOURCES = [
   'TA Hub',
   'Word of Mouth',
   'Website',
+  'Website Form',
+  'Google Calendar',
   'Bid',
   'Networking',
   'Social Media',
@@ -156,10 +193,11 @@ const STATUS_BADGE = {
 export default function AdminLeads() {
   const navigate = useNavigate()
   const isDark = useThemeStore((s) => s.adminTheme) === 'dark'
-  const leads         = useProjectStore((s) => s.leads)
-  const projects      = useProjectStore((s) => s.projects)
-  const addLead       = useProjectStore((s) => s.addLead)
-  const updateLead    = useProjectStore((s) => s.updateLead)
+  const storeLeads     = useProjectStore((s) => s.leads)
+  const projects       = useProjectStore((s) => s.projects)
+  const setStoreLeads  = useProjectStore((s) => s.setLeads)
+  const addLead        = useProjectStore((s) => s.addLead)
+  const updateLead     = useProjectStore((s) => s.updateLead)
   const deleteLead     = useProjectStore((s) => s.deleteLead)
   const createProject  = useProjectStore((s) => s.createProject)
   const deleteProject  = useProjectStore((s) => s.deleteProject)
@@ -167,10 +205,49 @@ export default function AdminLeads() {
   const [editingLead, setEditingLead] = useState(null)
   const [confirmPush, setConfirmPush] = useState(null)
   const [syncing, setSyncing]         = useState(false)
+  const [dbReady, setDbReady]         = useState(false)
 
-  // Auto-import new leads from lead_inbox table on mount
-  const syncLeadInbox = async () => {
+  // ── Load leads from Supabase on mount ──────────────────────────────────────
+  const loadFromDb = useCallback(async () => {
     setSyncing(true)
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .order('submitted_at', { ascending: false })
+
+      if (error) {
+        // Table might not exist yet — fall back to local store
+        console.warn('leads table not available, using local store:', error.message)
+        setDbReady(false)
+        setSyncing(false)
+        return
+      }
+
+      setDbReady(true)
+
+      if (data && data.length > 0) {
+        // DB has leads — use them as source of truth
+        const dbLeads = data.map(fromDb)
+        setStoreLeads(dbLeads)
+      } else if (storeLeads.length > 0) {
+        // DB is empty but local store has leads — push local to DB (one-time migration)
+        for (const lead of storeLeads) {
+          await supabase.from('leads').upsert(toDb(lead))
+        }
+      }
+
+      // Also import from lead_inbox
+      await importFromInbox()
+    } catch (err) {
+      console.error('Load leads error:', err)
+    } finally {
+      setSyncing(false)
+    }
+  }, [])
+
+  // ── Import new leads from lead_inbox (webhook entries) ─────────────────────
+  const importFromInbox = async () => {
     try {
       const { data, error } = await supabase
         .from('lead_inbox')
@@ -178,20 +255,18 @@ export default function AdminLeads() {
         .eq('imported', false)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
-      if (!data || data.length === 0) {
-        setSyncing(false)
-        return 0
-      }
+      if (error || !data || data.length === 0) return 0
 
       let imported = 0
+      const currentLeads = useProjectStore.getState().leads
+
       for (const row of data) {
-        // Check for duplicate by email
-        const alreadyExists = leads.some(
+        const alreadyExists = currentLeads.some(
           (l) => l.email && row.email && l.email.toLowerCase() === row.email.toLowerCase()
         )
         if (!alreadyExists) {
-          addLead({
+          const newLead = {
+            id:             `lead_${Date.now()}_${imported}`,
             name:           row.name,
             company:        row.company || '',
             email:          row.email || '',
@@ -203,35 +278,58 @@ export default function AdminLeads() {
             submittedAt:    row.created_at,
             notes:          row.notes || '',
             inboxId:        row.id,
-          })
+            converted:      false,
+          }
+          addLead(newLead)
+          // Also save to leads table
+          await supabase.from('leads').upsert(toDb(newLead))
           imported++
         }
-        // Mark as imported in Supabase
         await supabase.from('lead_inbox').update({ imported: true }).eq('id', row.id)
       }
       if (imported > 0) toast.success(`${imported} new lead${imported > 1 ? 's' : ''} imported!`)
       return imported
     } catch (err) {
-      console.error('Lead inbox sync error:', err)
-    } finally {
-      setSyncing(false)
+      console.error('Inbox import error:', err)
+      return 0
     }
   }
 
-  useEffect(() => { syncLeadInbox() }, [])
+  useEffect(() => { loadFromDb() }, [loadFromDb])
 
+  // ── DB-syncing wrappers ────────────────────────────────────────────────────
+  const handleAddLead = async (data) => {
+    const newLead = { id: `lead_${Date.now()}`, ...data, converted: false }
+    addLead(newLead)
+    if (dbReady) await supabase.from('leads').upsert(toDb(newLead))
+  }
+
+  const handleUpdateLead = async (leadId, patch) => {
+    updateLead(leadId, patch)
+    if (dbReady) {
+      const updated = useProjectStore.getState().leads.find((l) => l.id === leadId)
+      if (updated) await supabase.from('leads').upsert(toDb(updated))
+    }
+  }
+
+  const handleDeleteLead = async (leadId) => {
+    deleteLead(leadId)
+    if (dbReady) await supabase.from('leads').delete().eq('id', leadId)
+  }
+
+  const leads = storeLeads
   const CLOSED_STATUSES = ['Booked', 'Pushed to Project', 'Lost']
   const visibleLeads = leads.filter((l) => l.status !== 'Pushed to Project')
   const openLeads = leads.filter((l) => !CLOSED_STATUSES.includes(l.status))
-  const totalPotential = openLeads.reduce((s, l) => s + l.potentialValue, 0)
+  const totalPotential = openLeads.reduce((s, l) => s + (l.potentialValue || 0), 0)
 
   const handleStatusChange = (leadId, newStatus) => {
-    updateLead(leadId, { status: newStatus })
+    handleUpdateLead(leadId, { status: newStatus })
     toast.success(`Status → ${newStatus}`)
   }
 
   const handleSourceChange = (leadId, newSource) => {
-    updateLead(leadId, { source: newSource })
+    handleUpdateLead(leadId, { source: newSource })
     toast.success(`Source → ${newSource}`)
   }
 
@@ -250,7 +348,7 @@ export default function AdminLeads() {
       leadId:         lead.id,
     })
     const previousStatus = lead.status
-    updateLead(lead.id, { projectId: project.id, status: 'Pushed to Project' })
+    handleUpdateLead(lead.id, { projectId: project.id, status: 'Pushed to Project' })
     toast.success(
       (t) => (
         <div className="flex items-center gap-3">
@@ -258,7 +356,7 @@ export default function AdminLeads() {
           <button
             onClick={() => {
               deleteProject(project.id)
-              updateLead(lead.id, { projectId: undefined, status: previousStatus })
+              handleUpdateLead(lead.id, { projectId: undefined, status: previousStatus })
               toast.dismiss(t.id)
               toast.success('Undone — lead restored')
             }}
@@ -272,8 +370,6 @@ export default function AdminLeads() {
     )
   }
 
-  const getLinkedProject = (lead) => projects.find((p) => p.id === lead.projectId)
-
   return (
     <AdminLayout>
       <PageHeader
@@ -283,10 +379,10 @@ export default function AdminLeads() {
         actions={
           <div className="flex items-center gap-2">
             <button
-              onClick={syncLeadInbox}
+              onClick={loadFromDb}
               disabled={syncing}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-admin-border text-xs font-medium text-slate-400 hover:text-brand-400 hover:border-brand-400/50 transition-colors disabled:opacity-50"
-              title="Sync leads from Google Calendar & website form"
+              title="Sync leads from database, Google Calendar & website form"
             >
               <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
               {syncing ? 'Syncing…' : 'Sync'}
@@ -369,7 +465,7 @@ export default function AdminLeads() {
                           <button
                             onClick={() => {
                               deleteProject(lead.projectId)
-                              updateLead(lead.id, { projectId: undefined, status: 'Booked' })
+                              handleUpdateLead(lead.id, { projectId: undefined, status: 'Booked' })
                               toast.success('Undone — lead restored to Booked')
                             }}
                             className="p-1 rounded-md text-slate-600 hover:text-red-400 hover:bg-red-900/20 transition-colors"
@@ -395,7 +491,7 @@ export default function AdminLeads() {
                         <Pencil size={13} />
                       </button>
                       <button
-                        onClick={() => { deleteLead(lead.id); toast.success('Lead deleted') }}
+                        onClick={() => { handleDeleteLead(lead.id); toast.success('Lead deleted') }}
                         className="p-1.5 rounded-md text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition-colors"
                         title="Delete lead"
                       >
@@ -413,7 +509,7 @@ export default function AdminLeads() {
       {showAdd && (
         <LeadModal
           onClose={() => setShowAdd(false)}
-          onSave={(lead) => addLead(lead)}
+          onSave={(lead) => handleAddLead(lead)}
         />
       )}
 
@@ -421,7 +517,7 @@ export default function AdminLeads() {
         <LeadModal
           lead={editingLead}
           onClose={() => setEditingLead(null)}
-          onSave={(data) => updateLead(editingLead.id, data)}
+          onSave={(data) => handleUpdateLead(editingLead.id, data)}
         />
       )}
 

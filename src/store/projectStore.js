@@ -226,8 +226,11 @@ const useProjectStore = create(
 
   // ── Lead Actions ───────────────────────────────────────────────────────────
 
+  /** Replace entire leads array (used when loading from Supabase) */
+  setLeads: (leads) => set({ leads }),
+
   addLead: (lead) => {
-    const newLead = { id: `lead_${Date.now()}`, ...lead, converted: false }
+    const newLead = lead.id ? { converted: false, ...lead } : { id: `lead_${Date.now()}`, ...lead, converted: false }
     set((state) => ({ leads: [newLead, ...state.leads] }))
   },
 
