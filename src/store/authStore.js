@@ -260,18 +260,39 @@ const useAuthStore = create((set, get) => ({
     }
 
     // Write directly to profiles table — this is the source of truth
-    const { error, count } = await supabase.from('profiles').update({
+    // Use .select() to verify the update actually affected a row (RLS can silently block)
+    const updatePayload = {
       name:       payload.name,
       business:   payload.business,
       businesses: payload.businesses,
       phone:      payload.phone,
       nickname:   payload.nickname,
       avatar_url: payload.avatar_url,
-    }).eq('id', current.id)
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updatePayload)
+      .eq('id', current.id)
+      .select()
 
     if (error) {
-      console.error('[authStore] profiles update failed:', error.message, error)
+      console.error('[authStore] profiles update error:', error.message, error)
       return { success: false, error: error.message }
+    }
+
+    if (!data || data.length === 0) {
+      // RLS silently blocked the update — try upsert as fallback
+      console.warn('[authStore] update returned 0 rows, trying upsert...')
+      const { data: d2, error: e2 } = await supabase
+        .from('profiles')
+        .upsert({ id: current.id, email: current.email, ...updatePayload })
+        .select()
+
+      if (e2 || !d2?.length) {
+        console.error('[authStore] upsert also failed:', e2?.message)
+        return { success: false, error: 'Could not save profile — please log out and log back in' }
+      }
     }
 
     // Update local user state immediately
