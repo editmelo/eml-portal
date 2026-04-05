@@ -259,7 +259,7 @@ const useAuthStore = create((set, get) => ({
       return { success: false, error: 'Session expired — please log out and log back in' }
     }
 
-    // Write directly to profiles table — this is the source of truth
+    // Use edge function to bypass RLS (service role)
     const updatePayload = {
       name:       payload.name,
       business:   payload.business,
@@ -269,36 +269,22 @@ const useAuthStore = create((set, get) => ({
       avatar_url: payload.avatar_url,
     }
 
-    // Debug: log session state
-    const uid = session.user?.id
-    console.log('[saveProfile] uid:', uid, 'profile id:', current.id, 'match:', uid === current.id)
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updatePayload)
-      .eq('id', uid)  // use session uid directly instead of current.id
-      .select()
-
-    console.log('[saveProfile] update result:', { data, error })
-
-    if (error) {
-      console.error('[authStore] profiles update error:', error.message, error)
-      return { success: false, error: error.message }
-    }
-
-    if (!data || data.length === 0) {
-      // RLS blocked — try upsert with session uid
-      console.warn('[authStore] update returned 0 rows, trying upsert with uid:', uid)
-      const { data: d2, error: e2 } = await supabase
-        .from('profiles')
-        .upsert({ id: uid, email: current.email, ...updatePayload })
-        .select()
-
-      console.log('[saveProfile] upsert result:', { data: d2, error: e2 })
-
-      if (e2 || !d2?.length) {
-        return { success: false, error: `Save failed (uid: ${uid?.slice(0,8)}). Open console for details.` }
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-profile`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(updatePayload),
       }
+    )
+    const result = await res.json()
+
+    if (!res.ok || result.error) {
+      console.error('[authStore] profile save failed:', result.error)
+      return { success: false, error: result.error || 'Save failed' }
     }
 
     // Update local user state immediately

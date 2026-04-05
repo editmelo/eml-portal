@@ -146,12 +146,9 @@ function ProfileTab({ user }) {
     reader.readAsDataURL(file)
   }
 
-  // Persist businesses to both Supabase profiles table and auth metadata
+  // Persist businesses via edge function (bypasses RLS)
   const persistBusinesses = async (bizArray) => {
-    // Write directly to profiles table (source of truth for cross-device sync)
-    await supabase.from('profiles').update({ businesses: bizArray }).eq('id', user?.id)
-    // Also write to auth metadata
-    saveProfile({ businesses: bizArray })
+    await saveProfile({ businesses: bizArray })
   }
 
   const handleAddBusiness = () => {
