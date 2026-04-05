@@ -38,26 +38,40 @@ const useAuthStore = create((set, get) => ({
   init: async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user) {
-      // getUser() fetches server-fresh metadata — avoids stale JWT cache on other devices
-      const { data: { user: freshUser } } = await supabase.auth.getUser()
-      const resolved = freshUser ?? session.user
-      const shaped = shapeUser(resolved)
+      const resolved = session.user
+      let shaped = shapeUser(resolved)
       set({ user: shaped, isAuthenticated: true, isLoading: false })
-      // Ensure profiles row exists (back-fills users who signed up before profiles sync)
-      supabase.from('profiles').upsert({
-        id:    resolved.id,
-        email: resolved.email,
-        name:  shaped.name,
-        role:  shaped.role,
-      }).then(({ error: pErr }) => {
-        if (pErr) console.error('[authStore] profiles upsert on init:', pErr.message)
-      })
-      // Sync businesses from profiles table (cross-device support)
-      supabase.from('profiles').select('businesses, nickname, phone, avatar_url').eq('id', resolved.id).single().then(async ({ data: profile }) => {
-        if (profile?.businesses?.length) {
-          const { default: useProjectStore } = await import('./projectStore')
-          const existing = useProjectStore.getState().clientProfiles[resolved.id] ?? {}
-          if (!existing.businesses?.length || existing.businesses.length < profile.businesses.length) {
+
+      // Load profile data from profiles table (source of truth, not auth metadata)
+      supabase.from('profiles').select('*').eq('id', resolved.id).single().then(async ({ data: profile, error: pErr }) => {
+        if (pErr) {
+          // Profile doesn't exist — create it
+          await supabase.from('profiles').upsert({
+            id:    resolved.id,
+            email: resolved.email,
+            name:  shaped.name,
+            role:  shaped.role,
+          })
+          return
+        }
+
+        // Merge profile table data into user state
+        if (profile) {
+          const merged = {
+            ...shaped,
+            name:     profile.name     || shaped.name,
+            phone:    profile.phone    || shaped.phone,
+            nickname: profile.nickname || shaped.nickname,
+            avatar:   profile.avatar_url || shaped.avatar,
+            business: profile.business || shaped.business,
+            businesses: profile.businesses?.length ? profile.businesses : shaped.businesses,
+          }
+          set({ user: merged })
+
+          // Sync businesses into projectStore for sidebar
+          if (profile.businesses?.length) {
+            const { default: useProjectStore } = await import('./projectStore')
+            const existing = useProjectStore.getState().clientProfiles[resolved.id] ?? {}
             useProjectStore.getState().saveClientProfile(resolved.id, {
               ...existing,
               businesses: profile.businesses,
@@ -222,40 +236,41 @@ const useAuthStore = create((set, get) => ({
   },
 
   /**
-   * Save profile changes to Supabase user_metadata so they persist across sessions.
+   * Save profile changes to the profiles table (source of truth).
+   * No longer depends on auth.updateUser() — avoids Bearer token issues.
    * Returns { success, error? }
    */
   saveProfile: async (patch) => {
     const current = get().user
     if (!current) return { success: false }
 
-    // Refresh session first to avoid stale Bearer token errors
-    const { error: refreshErr } = await supabase.auth.refreshSession()
-    if (refreshErr) {
-      console.warn('[authStore] session refresh failed:', refreshErr.message)
-    }
-
     const payload = {
-      name:       patch.name     ?? current.name,
-      business:   patch.business ?? current.business,
+      name:       patch.name       ?? current.name,
+      business:   patch.business   ?? current.business,
       businesses: patch.businesses ?? current.businesses ?? [],
-      phone:      patch.phone    ?? current.phone,
-      nickname:   patch.nickname ?? current.nickname,
-      avatar_url: patch.avatar   ?? current.avatar,
+      phone:      patch.phone      ?? current.phone,
+      nickname:   patch.nickname   ?? current.nickname,
+      avatar_url: patch.avatar     ?? current.avatar,
     }
 
-    const { error } = await supabase.auth.updateUser({ data: payload })
-    if (error) return { success: false, error: error.message }
+    // Write directly to profiles table — this is the source of truth
+    const { error } = await supabase.from('profiles').update({
+      name:       payload.name,
+      business:   payload.business,
+      businesses: payload.businesses,
+      phone:      payload.phone,
+      nickname:   payload.nickname,
+      avatar_url: payload.avatar_url,
+      updated_at: new Date().toISOString(),
+    }).eq('id', current.id)
 
-    // Sync to profiles table so admin People tab stays current
-    await supabase.from('profiles').upsert({
-      id:         current.id,
-      email:      current.email,
-      ...payload,
-    })
-    // Fetch server-fresh user so metadata is up-to-date in the store
-    const { data: { user: freshUser } } = await supabase.auth.getUser()
-    set({ user: freshUser ? shapeUser(freshUser) : { ...current, ...patch } })
+    if (error) {
+      console.error('[authStore] profiles update failed:', error.message)
+      return { success: false, error: error.message }
+    }
+
+    // Update local user state immediately (no auth.getUser() dependency)
+    set({ user: { ...current, ...patch, name: payload.name, phone: payload.phone, nickname: payload.nickname, avatar: payload.avatar_url } })
     return { success: true }
   },
 

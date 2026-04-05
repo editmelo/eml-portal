@@ -207,18 +207,9 @@ function ProfileTab({ user }) {
 
   const handleSave = async () => {
     setSaving(true)
-    // Save to local store first
-    saveClientProfile(user?.id, { avatar, phone: form.phone, name: form.name })
 
-    // Save to Supabase (profiles table + auth metadata)
+    // Save to Supabase profiles table (source of truth)
     const result = await saveProfile({ name: form.name, phone: form.phone, nickname: form.nickname, avatar })
-
-    // Also write name directly to profiles table as backup
-    await supabase.from('profiles').update({
-      name:     form.name,
-      phone:    form.phone,
-      nickname: form.nickname,
-    }).eq('id', user?.id)
 
     setSaving(false)
 
@@ -227,8 +218,8 @@ function ProfileTab({ user }) {
       return
     }
 
-    // Only update local user state after confirmed save
-    updateUser({ ...form })
+    // Update local stores after confirmed save
+    saveClientProfile(user?.id, { avatar, phone: form.phone, name: form.name })
     setSaved(true)
     toast.success('Profile saved!')
     setTimeout(() => setSaved(false), 2500)
