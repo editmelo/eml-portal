@@ -5,7 +5,7 @@ import {
   ClipboardList, FolderOpen, Image, Receipt, Calendar,
   Upload, DollarSign, FileText, LogOut, Settings,
   ListChecks, ScrollText, CalendarDays, UserCircle, ChevronDown, Mail, X,
-  Building2, Check,
+  Building2, Check, Globe, Video,
 } from 'lucide-react'
 import useAuthStore, { selectUser, selectRole, selectViewRole } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
@@ -18,6 +18,7 @@ const ICONS = {
   LayoutDashboard, FolderKanban, Users, Wallet, BarChart3,
   ClipboardList, FolderOpen, Image, Receipt, Calendar,
   Upload, DollarSign, FileText, ListChecks, ScrollText, CalendarDays, UserCircle, Mail,
+  Globe, Video,
 }
 
 // ── Admin theme variants (dark / light) ───────────────────────────────────────

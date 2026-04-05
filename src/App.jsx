@@ -34,6 +34,7 @@ const ClientSchedule    = lazy(() => import('./pages/client/ClientSchedule'))
 const ClientTodo        = lazy(() => import('./pages/client/ClientTodo'))
 const ClientAgreements  = lazy(() => import('./pages/client/ClientAgreements'))
 const ClientSettings    = lazy(() => import('./pages/client/ClientSettings'))
+const ClientUpdates     = lazy(() => import('./pages/client/ClientUpdates'))
 const ClientInbox       = lazy(() => import('./pages/client/ClientInbox'))
 
 // Designer
@@ -247,6 +248,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={[ROLES.CLIENT]}>
               <ClientAgreements />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/client/updates"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.CLIENT]}>
+              <ClientUpdates />
             </ProtectedRoute>
           }
         />

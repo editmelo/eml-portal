@@ -14,7 +14,7 @@ import { cn } from '../../lib/utils'
 import {
   Plus, Search, ChevronDown, ChevronUp, X, Edit2,
   User, Calendar, DollarSign, Save, Users, Sparkles, Clock,
-  CheckCircle2, XCircle, Eye,
+  CheckCircle2, XCircle, Eye, Globe, Wrench, MessageSquare,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -546,6 +546,168 @@ function ProjectRequests({ isDark }) {
   )
 }
 
+// ── Website Update Requests Section ──────────────────────────────────────────
+function UpdateRequests({ isDark }) {
+  const updateRequests             = useProjectStore((s) => s.updateRequests)
+  const updateUpdateRequestStatus  = useProjectStore((s) => s.updateUpdateRequestStatus)
+  const addUpdateRequestNote       = useProjectStore((s) => s.addUpdateRequestNote)
+  const [expanded, setExpanded]    = useState(null)
+  const [noteText, setNoteText]    = useState('')
+
+  if (updateRequests.length === 0) return null
+
+  const newReqs    = updateRequests.filter((r) => r.status === 'New')
+  const inProgress = updateRequests.filter((r) => r.status === 'In Progress')
+  const rest       = updateRequests.filter((r) => r.status !== 'New' && r.status !== 'In Progress')
+
+  const statusActions = [
+    { label: 'In Progress', icon: <Wrench size={12} />,       color: 'text-blue-400 hover:bg-blue-500/10' },
+    { label: 'Complete',    icon: <CheckCircle2 size={12} />,  color: 'text-emerald-400 hover:bg-emerald-500/10' },
+    { label: 'On Hold',     icon: <Clock size={12} />,         color: 'text-amber-400 hover:bg-amber-500/10' },
+  ]
+
+  const priorityStyle = {
+    low:    'bg-slate-500/10 text-slate-400',
+    normal: 'bg-blue-500/10 text-blue-400',
+    high:   'bg-amber-500/10 text-amber-400',
+    urgent: 'bg-red-500/10 text-red-400',
+  }
+
+  const handleNote = (reqId) => {
+    if (!noteText.trim()) return
+    addUpdateRequestNote(reqId, noteText.trim())
+    setNoteText('')
+    toast.success('Note added — client can see it')
+  }
+
+  const renderRequest = (r) => (
+    <DarkCard key={r.id} className="overflow-hidden">
+      <button className="w-full text-left" onClick={() => { setExpanded((v) => v === r.id ? null : r.id); setNoteText(r.adminNote ?? '') }}>
+        <div className="flex items-start gap-4 p-4 hover:bg-white/[0.02] transition-colors">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h4 className="text-sm font-semibold text-slate-100">
+                {r.updateType === 'text' ? 'Text / Copy Change' :
+                 r.updateType === 'image' ? 'Image / Photo Swap' :
+                 r.updateType === 'new-page' ? 'New Page' :
+                 r.updateType === 'layout' ? 'Layout Change' :
+                 r.updateType === 'bug' ? 'Bug Fix' :
+                 r.updateType === 'feature' ? 'New Feature' :
+                 r.updateType === 'content' ? 'Content Update' : 'Other'}
+              </h4>
+              <span className={cn(
+                'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
+                r.status === 'New'         && 'bg-brand-500/10 text-brand-400',
+                r.status === 'In Progress' && 'bg-blue-500/10 text-blue-400',
+                r.status === 'Complete'    && 'bg-emerald-500/10 text-emerald-400',
+                r.status === 'On Hold'     && 'bg-amber-500/10 text-amber-400',
+              )}>
+                {r.status}
+              </span>
+              <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider', priorityStyle[r.priority] ?? priorityStyle.normal)}>
+                {r.priority}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+              <span className="flex items-center gap-1"><User size={11} /> {r.clientName}</span>
+              {r.pageUrl && <span className="flex items-center gap-1"><Globe size={11} /> {r.pageUrl}</span>}
+              <span className="flex items-center gap-1"><Clock size={11} /> {new Date(r.createdAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+          <div className="shrink-0">
+            {expanded === r.id ? <ChevronUp size={14} className="text-slate-500" /> : <ChevronDown size={14} className="text-slate-500" />}
+          </div>
+        </div>
+      </button>
+
+      {expanded === r.id && (
+        <div className="border-t border-admin-border px-4 py-4 space-y-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Description</p>
+            <p className="text-sm text-slate-300 leading-relaxed">{r.description}</p>
+          </div>
+          {r.pageUrl && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Page / URL</p>
+              <p className="text-sm text-slate-300">{r.pageUrl}</p>
+            </div>
+          )}
+          {r.clientEmail && (
+            <p className="text-xs text-slate-500">Contact: <span className="text-slate-300">{r.clientEmail}</span></p>
+          )}
+
+          {/* Status actions */}
+          <div className="flex gap-2 pt-1">
+            {statusActions
+              .filter((a) => a.label !== r.status)
+              .map((a) => (
+                <button
+                  key={a.label}
+                  onClick={() => { updateUpdateRequestStatus(r.id, a.label); toast.success(`Marked as ${a.label}`) }}
+                  className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-admin-border transition-colors', a.color)}
+                >
+                  {a.icon} {a.label}
+                </button>
+              ))}
+          </div>
+
+          {/* Admin note / response to client */}
+          <div className="pt-2 border-t border-admin-border">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 flex items-center gap-1">
+              <MessageSquare size={10} /> Note to Client
+            </p>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 rounded-lg border border-admin-border bg-admin-bg text-slate-100 px-3 py-2 text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-400/40"
+                placeholder="Leave a note the client can see..."
+                value={expanded === r.id ? noteText : ''}
+                onChange={(e) => setNoteText(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.key === 'Enter' && handleNote(r.id)}
+              />
+              <button
+                onClick={(e) => { e.stopPropagation(); handleNote(r.id) }}
+                className="px-3 py-2 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-colors"
+              >
+                Save
+              </button>
+            </div>
+            {r.adminNote && (
+              <p className="text-xs text-slate-400 mt-1.5 italic">Current: "{r.adminNote}"</p>
+            )}
+          </div>
+        </div>
+      )}
+    </DarkCard>
+  )
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center gap-2 mb-3">
+        <Globe size={16} className="text-brand-400" />
+        <h2 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-800'}`}>
+          Website Update Requests
+        </h2>
+        {newReqs.length > 0 && (
+          <span className="px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-400 text-[10px] font-bold">
+            {newReqs.length} new
+          </span>
+        )}
+        {inProgress.length > 0 && (
+          <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-bold">
+            {inProgress.length} in progress
+          </span>
+        )}
+      </div>
+      <div className="space-y-2">
+        {newReqs.map(renderRequest)}
+        {inProgress.map(renderRequest)}
+        {rest.map(renderRequest)}
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AdminProjects() {
   const projects    = useProjectStore((s) => s.projects)
@@ -617,6 +779,9 @@ export default function AdminProjects() {
 
       {/* Client project requests */}
       <ProjectRequests isDark={isDark} />
+
+      {/* Website update requests */}
+      <UpdateRequests isDark={isDark} />
 
       <div className="space-y-3">
         {filtered.map((p) => <ProjectRow key={p.id} project={p} isDark={isDark} profiles={profiles} clients={clients} designers={designers} />)}

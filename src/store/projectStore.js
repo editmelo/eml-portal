@@ -30,6 +30,7 @@ const useProjectStore = create(
   projectBriefs:   {},   // { [projectId]: { ...generated brief data, createdAt } } — auto-generated from intake form
   folders:         [],   // [{ id, name, ownerId, ownerRole, ownerName, context, contextId, clientVisible, createdAt, files[] }]
   projectRequests: [],   // [{ id, clientId, clientName, clientEmail, businessId, serviceType, description, timeline, budget, goal, status, createdAt }]
+  updateRequests:  [],   // [{ id, clientId, clientName, clientEmail, projectId, updateType, pageUrl, description, priority, status, createdAt }]
   financials:      { monthlyRevenue: 0, monthlyExpenses: 0, ytdRevenue: 0, ytdExpenses: 0, goalMonthly: 5000, goalYearly: 60000, monthlyBreakdown: [] },
   isLoading:       false,
 
@@ -524,6 +525,35 @@ const useProjectStore = create(
     }))
   },
 
+  // ── Website Update Request Actions ────────────────────────────────────────
+
+  submitUpdateRequest: (request) => {
+    const newRequest = {
+      id: `upd_${Date.now()}`,
+      status: 'New',
+      createdAt: new Date().toISOString(),
+      ...request,
+    }
+    set((state) => ({ updateRequests: [newRequest, ...state.updateRequests] }))
+    return newRequest
+  },
+
+  updateUpdateRequestStatus: (requestId, status) => {
+    set((state) => ({
+      updateRequests: state.updateRequests.map((r) =>
+        r.id === requestId ? { ...r, status } : r
+      ),
+    }))
+  },
+
+  addUpdateRequestNote: (requestId, note) => {
+    set((state) => ({
+      updateRequests: state.updateRequests.map((r) =>
+        r.id === requestId ? { ...r, adminNote: note } : r
+      ),
+    }))
+  },
+
   // ── Selectors (callable inside components via store) ───────────────────────
 
   /** Projects visible to a specific designer */
@@ -608,6 +638,7 @@ const useProjectStore = create(
         projectBriefs:   state.projectBriefs,
         folders:         state.folders,
         projectRequests: state.projectRequests,
+        updateRequests:  state.updateRequests,
         financials:      state.financials,
       }),
     }

@@ -87,6 +87,7 @@ export const NAV_CONFIG = {
     { label: 'Drafts & Review', path: '/client/drafts',         icon: 'Image' },
     { label: 'Invoices',        path: '/client/invoices',       icon: 'Receipt' },
     { label: 'Schedule',        path: '/client/schedule',       icon: 'Calendar' },
+    { label: 'Website Updates',  path: '/client/updates',        icon: 'Globe' },
     { label: 'To-Do',           path: '/client/todo',           icon: 'ListChecks' },
     { label: 'Agreements',      path: '/client/agreements',     icon: 'ScrollText' },
   ],
