@@ -253,8 +253,14 @@ const useAuthStore = create((set, get) => ({
       avatar_url: patch.avatar     ?? current.avatar,
     }
 
+    // Check we have an active session
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      return { success: false, error: 'Session expired — please log out and log back in' }
+    }
+
     // Write directly to profiles table — this is the source of truth
-    const { error } = await supabase.from('profiles').update({
+    const { error, count } = await supabase.from('profiles').update({
       name:       payload.name,
       business:   payload.business,
       businesses: payload.businesses,
@@ -264,11 +270,11 @@ const useAuthStore = create((set, get) => ({
     }).eq('id', current.id)
 
     if (error) {
-      console.error('[authStore] profiles update failed:', error.message)
+      console.error('[authStore] profiles update failed:', error.message, error)
       return { success: false, error: error.message }
     }
 
-    // Update local user state immediately (no auth.getUser() dependency)
+    // Update local user state immediately
     set({ user: { ...current, ...patch, name: payload.name, phone: payload.phone, nickname: payload.nickname, avatar: payload.avatar_url } })
     return { success: true }
   },
