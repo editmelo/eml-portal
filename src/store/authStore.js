@@ -261,7 +261,6 @@ const useAuthStore = create((set, get) => ({
       phone:      payload.phone,
       nickname:   payload.nickname,
       avatar_url: payload.avatar_url,
-      updated_at: new Date().toISOString(),
     }).eq('id', current.id)
 
     if (error) {
