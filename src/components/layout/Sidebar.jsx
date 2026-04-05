@@ -128,7 +128,9 @@ export default function Sidebar({ open, onClose }) {
   }
 
   const handleNavClick = () => {
-    // Close drawer on mobile when a nav item is tapped
+    // Close dropdowns + drawer on mobile when a nav item is tapped
+    setSwitchOpen(false)
+    setBizOpen(false)
     if (onClose) onClose()
   }
 
@@ -168,7 +170,7 @@ export default function Sidebar({ open, onClose }) {
           {role === ROLES.ADMIN ? (
             <div className="relative flex-1">
               <button
-                onClick={() => setSwitchOpen((o) => !o)}
+                onClick={() => { setSwitchOpen((o) => !o); setBizOpen(false) }}
                 className="flex items-center gap-1.5 text-left w-full group"
               >
                 <div>
@@ -220,7 +222,7 @@ export default function Sidebar({ open, onClose }) {
             {hasMultipleBusinesses ? (
               <div className="relative">
                 <button
-                  onClick={() => setBizOpen((o) => !o)}
+                  onClick={() => { setBizOpen((o) => !o); setSwitchOpen(false) }}
                   className={cn(
                     'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors',
                     portalTheme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-slate-50'

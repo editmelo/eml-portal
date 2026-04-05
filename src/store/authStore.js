@@ -52,6 +52,20 @@ const useAuthStore = create((set, get) => ({
       }).then(({ error: pErr }) => {
         if (pErr) console.error('[authStore] profiles upsert on init:', pErr.message)
       })
+      // Sync businesses from profiles table (cross-device support)
+      supabase.from('profiles').select('businesses, nickname, phone, avatar_url').eq('id', resolved.id).single().then(async ({ data: profile }) => {
+        if (profile?.businesses?.length) {
+          const { default: useProjectStore } = await import('./projectStore')
+          const existing = useProjectStore.getState().clientProfiles[resolved.id] ?? {}
+          if (!existing.businesses?.length || existing.businesses.length < profile.businesses.length) {
+            useProjectStore.getState().saveClientProfile(resolved.id, {
+              ...existing,
+              businesses: profile.businesses,
+              activeBusinessId: existing.activeBusinessId ?? profile.businesses[0]?.id,
+            })
+          }
+        }
+      })
     } else {
       set({ isLoading: false })
     }
@@ -214,26 +228,30 @@ const useAuthStore = create((set, get) => ({
   saveProfile: async (patch) => {
     const current = get().user
     if (!current) return { success: false }
-    const { error } = await supabase.auth.updateUser({
-      data: {
-        name:       patch.name     ?? current.name,
-        business:   patch.business ?? current.business,
-        businesses: patch.businesses ?? current.businesses ?? [],
-        phone:      patch.phone    ?? current.phone,
-        nickname:   patch.nickname ?? current.nickname,
-        avatar_url: patch.avatar   ?? current.avatar,
-      },
-    })
-    if (error) return { success: false, error: error.message }
-    // Sync to profiles table so admin People tab stays current
-    await supabase.from('profiles').upsert({
-      id:         current.id,
+
+    // Refresh session first to avoid stale Bearer token errors
+    const { error: refreshErr } = await supabase.auth.refreshSession()
+    if (refreshErr) {
+      console.warn('[authStore] session refresh failed:', refreshErr.message)
+    }
+
+    const payload = {
       name:       patch.name     ?? current.name,
       business:   patch.business ?? current.business,
       businesses: patch.businesses ?? current.businesses ?? [],
       phone:      patch.phone    ?? current.phone,
       nickname:   patch.nickname ?? current.nickname,
       avatar_url: patch.avatar   ?? current.avatar,
+    }
+
+    const { error } = await supabase.auth.updateUser({ data: payload })
+    if (error) return { success: false, error: error.message }
+
+    // Sync to profiles table so admin People tab stays current
+    await supabase.from('profiles').upsert({
+      id:         current.id,
+      email:      current.email,
+      ...payload,
     })
     // Fetch server-fresh user so metadata is up-to-date in the store
     const { data: { user: freshUser } } = await supabase.auth.getUser()
