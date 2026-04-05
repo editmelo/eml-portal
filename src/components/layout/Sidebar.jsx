@@ -112,7 +112,7 @@ export default function Sidebar({ open, onClose }) {
     // Always fetch from DB on mount to stay in sync
     supabase.from('profiles').select('businesses').eq('id', user.id).single().then(({ data }) => {
       const dbBiz = data?.businesses ?? []
-      if (dbBiz.length > 0 && dbBiz.length > localBiz.length) {
+      if (dbBiz.length > 0 && dbBiz.length >= localBiz.length) {
         saveClientProfile(user.id, {
           ...(clientProfile ?? {}),
           businesses: dbBiz,

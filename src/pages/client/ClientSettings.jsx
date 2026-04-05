@@ -13,6 +13,7 @@ import {
   Building2, Plus, Trash2, Pencil, X, AlertTriangle,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import toast from 'react-hot-toast'
 
 const TABS = [
   { id: 'profile',       label: 'Profile',       icon: User },
@@ -143,6 +144,14 @@ function ProfileTab({ user }) {
     reader.readAsDataURL(file)
   }
 
+  // Persist businesses to both Supabase profiles table and auth metadata
+  const persistBusinesses = async (bizArray) => {
+    // Write directly to profiles table (source of truth for cross-device sync)
+    await supabase.from('profiles').update({ businesses: bizArray }).eq('id', user?.id)
+    // Also write to auth metadata
+    saveProfile({ businesses: bizArray })
+  }
+
   const handleAddBusiness = () => {
     if (!bizForm.name.trim()) return
     const updated = addClientBusiness(user?.id, bizForm.name.trim(), {
@@ -151,7 +160,7 @@ function ProfileTab({ user }) {
       website: bizForm.website.trim(),
       description: bizForm.description.trim(),
     })
-    saveProfile({ businesses: updated })
+    persistBusinesses(updated)
     setBizForm({ name: '', email: '', phone: '', website: '', description: '' })
     setAddingBiz(false)
   }
@@ -159,7 +168,7 @@ function ProfileTab({ user }) {
   const handleRemoveBusiness = (bizId) => {
     removeClientBusiness(user?.id, bizId)
     const profile = useProjectStore.getState().clientProfiles[user?.id]
-    saveProfile({ businesses: profile?.businesses ?? [] })
+    persistBusinesses(profile?.businesses ?? [])
   }
 
   const handleSaveBusiness = (bizId) => {
@@ -172,7 +181,7 @@ function ProfileTab({ user }) {
       description: bizForm.description.trim(),
     })
     const profile = useProjectStore.getState().clientProfiles[user?.id]
-    saveProfile({ businesses: profile?.businesses ?? [] })
+    persistBusinesses(profile?.businesses ?? [])
     setEditingBiz(null)
     setBizForm({ name: '', email: '', phone: '', website: '', description: '' })
   }
