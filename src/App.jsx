@@ -1,9 +1,38 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { Suspense, lazy, useEffect } from 'react'
+import { Suspense, lazy, useEffect, useRef, useCallback } from 'react'
 import ProtectedRoute, { ROLE_HOME } from './routes/ProtectedRoute'
 import useAuthStore, { selectIsAuthenticated, selectViewRole, selectAuthLoading } from './store/authStore'
 import { ROLES } from './lib/constants'
 import LoadingScreen from './components/ui/LoadingScreen'
+
+// ── Idle auto-logout (2 hours) ───────────────────────────────────────────────
+const IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000 // 2 hours
+
+function useIdleLogout() {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated)
+  const logout          = useAuthStore((s) => s.logout)
+  const timerRef        = useRef(null)
+
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (!isAuthenticated) return
+    timerRef.current = setTimeout(() => {
+      logout()
+      window.location.href = '/login'
+    }, IDLE_TIMEOUT_MS)
+  }, [isAuthenticated, logout])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll']
+    events.forEach((e) => window.addEventListener(e, resetTimer, { passive: true }))
+    resetTimer()
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+      events.forEach((e) => window.removeEventListener(e, resetTimer))
+    }
+  }, [isAuthenticated, resetTimer])
+}
 
 // ── Lazy-loaded pages ─────────────────────────────────────────────────────────
 const LoginPage  = lazy(() => import('./pages/auth/LoginPage'))
@@ -66,6 +95,7 @@ export default function App() {
   const isLoading = useAuthStore(selectAuthLoading)
 
   useEffect(() => { init() }, [])
+  useIdleLogout()
 
   if (isLoading) return <LoadingScreen />
 
