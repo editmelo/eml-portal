@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import PortalLayout from '../../components/layout/PortalLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import { Card, CardBody } from '../../components/ui/Card'
 import useAuthStore, { selectUser } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
+import useTodos from '../../hooks/useTodos'
 import { CheckCircle2, Circle, Trash2, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -22,37 +23,34 @@ const DEFAULT_TODOS = [
 export default function ClientTodo() {
   const user      = useAuthStore(selectUser)
   const projects  = useProjectStore((s) => s.projects)
-  const todos     = useProjectStore((s) => s.todos)
-  const addTodo   = useProjectStore((s) => s.addTodo)
-  const toggleTodo = useProjectStore((s) => s.toggleTodo)
-  const deleteTodo = useProjectStore((s) => s.deleteTodo)
-
   const getActiveClientProject = useProjectStore((s) => s.getActiveClientProject)
   const project   = getActiveClientProject(user?.id) ?? projects.find((p) => p.id === user?.projectId)
   const projectId = project?.id ?? `guest_${user?.id}`
 
+  const { todos, loading, addTodo, toggleTodo, deleteTodo } = useTodos(user?.id, projectId)
   const [newText, setNewText] = useState('')
   const [seeded,  setSeeded]  = useState(false)
 
   // Seed defaults on first visit if no todos exist
-  if (!seeded && (!todos[projectId] || todos[projectId].length === 0)) {
-    setSeeded(true)
-    DEFAULT_TODOS.forEach((text) => addTodo(projectId, text))
-  }
+  useEffect(() => {
+    if (!loading && !seeded && todos.length === 0) {
+      setSeeded(true)
+      DEFAULT_TODOS.forEach((text) => addTodo(text))
+    }
+  }, [loading, todos.length, seeded])
 
-  const list     = todos[projectId] ?? []
-  const done     = list.filter((t) => t.done).length
-  const pct      = list.length > 0 ? Math.round((done / list.length) * 100) : 0
+  const done = todos.filter((t) => t.done).length
+  const pct  = todos.length > 0 ? Math.round((done / todos.length) * 100) : 0
+  const list = todos
 
   const handleAdd = () => {
     if (!newText.trim()) return
-    addTodo(projectId, newText.trim())
+    addTodo(newText.trim())
     setNewText('')
   }
 
-  const handleToggle = (id) => toggleTodo(projectId, id)
   const handleDelete = (id) => {
-    deleteTodo(projectId, id)
+    deleteTodo(id)
     toast.success('Item removed')
   }
 
@@ -99,64 +97,56 @@ export default function ClientTodo() {
         </div>
 
         {/* Pending items */}
-        <div>
-          {list.filter((t) => !t.done).length > 0 && (
-            <div className="px-5 pt-4 pb-1">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">To Do</p>
-              <ul className="space-y-1">
-                {list.filter((t) => !t.done).map((todo) => (
-                  <li key={todo.id} className="group flex items-start gap-3 py-2.5 border-b border-slate-50 last:border-0">
-                    <button
-                      onClick={() => handleToggle(todo.id)}
-                      className="mt-0.5 shrink-0 text-slate-300 hover:text-brand-500 transition-colors"
-                    >
-                      <Circle size={18} />
-                    </button>
-                    <span className="flex-1 text-sm text-slate-700 leading-relaxed">{todo.text}</span>
-                    <button
-                      onClick={() => handleDelete(todo.id)}
-                      className="shrink-0 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+        {list.filter((t) => !t.done).length > 0 && (
+          <div className="px-5 pt-4 pb-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">To Do</p>
+            <ul className="space-y-1">
+              {list.filter((t) => !t.done).map((todo) => (
+                <li key={todo.id} className="group flex items-start gap-3 py-2.5 border-b border-slate-50 last:border-0">
+                  <button onClick={() => toggleTodo(todo.id)} className="mt-0.5 shrink-0 text-slate-300 hover:text-brand-500 transition-colors">
+                    <Circle size={18} />
+                  </button>
+                  <span className="flex-1 text-sm text-slate-700 leading-relaxed">{todo.text}</span>
+                  <button onClick={() => handleDelete(todo.id)} className="shrink-0 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all">
+                    <Trash2 size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-          {/* Completed items */}
-          {list.filter((t) => t.done).length > 0 && (
-            <div className="px-5 pt-4 pb-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Completed</p>
-              <ul className="space-y-1">
-                {list.filter((t) => t.done).map((todo) => (
-                  <li key={todo.id} className="group flex items-start gap-3 py-2.5 border-b border-slate-50 last:border-0">
-                    <button
-                      onClick={() => handleToggle(todo.id)}
-                      className="mt-0.5 shrink-0 text-emerald-500 hover:text-slate-300 transition-colors"
-                    >
-                      <CheckCircle2 size={18} />
-                    </button>
-                    <span className="flex-1 text-sm text-slate-400 line-through leading-relaxed">{todo.text}</span>
-                    <button
-                      onClick={() => handleDelete(todo.id)}
-                      className="shrink-0 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+        {/* Completed items */}
+        {list.filter((t) => t.done).length > 0 && (
+          <div className="px-5 pt-4 pb-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Completed</p>
+            <ul className="space-y-1">
+              {list.filter((t) => t.done).map((todo) => (
+                <li key={todo.id} className="group flex items-start gap-3 py-2.5 border-b border-slate-50 last:border-0">
+                  <button onClick={() => toggleTodo(todo.id)} className="mt-0.5 shrink-0 text-emerald-500 hover:text-slate-300 transition-colors">
+                    <CheckCircle2 size={18} />
+                  </button>
+                  <span className="flex-1 text-sm text-slate-400 line-through leading-relaxed">{todo.text}</span>
+                  <button onClick={() => handleDelete(todo.id)} className="shrink-0 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all">
+                    <Trash2 size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-          {list.length === 0 && (
-            <CardBody className="text-center py-10">
-              <p className="text-slate-400 text-sm">No items yet. Add something above!</p>
-            </CardBody>
-          )}
-        </div>
+        {!loading && list.length === 0 && (
+          <CardBody className="text-center py-10">
+            <p className="text-slate-400 text-sm">No items yet. Add something above!</p>
+          </CardBody>
+        )}
+
+        {loading && (
+          <CardBody className="text-center py-10">
+            <p className="text-slate-400 text-sm">Loading...</p>
+          </CardBody>
+        )}
       </Card>
     </PortalLayout>
   )

@@ -345,3 +345,37 @@ CREATE POLICY "Admins can manage leads"
 -- Add archived flag to profiles (soft-delete — data is preserved)
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS archived boolean DEFAULT false;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS archived_at timestamptz;
+
+
+-- ============================================================================
+-- 11. TODOS TABLE — syncs across all devices for all roles
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS todos (
+  id          text PRIMARY KEY,
+  owner_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  project_id  text,                 -- for client todos linked to a project
+  text        text NOT NULL,
+  done        boolean DEFAULT false,
+  is_priority boolean DEFAULT false,
+  created_at  timestamptz DEFAULT now()
+);
+
+ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
+
+-- Users can manage their own todos
+DROP POLICY IF EXISTS "Users manage own todos" ON todos;
+CREATE POLICY "Users manage own todos"
+  ON todos FOR ALL
+  TO authenticated
+  USING (owner_id = auth.uid())
+  WITH CHECK (owner_id = auth.uid());
+
+-- Admins can see all todos (for oversight)
+DROP POLICY IF EXISTS "Admins can view all todos" ON todos;
+CREATE POLICY "Admins can view all todos"
+  ON todos FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'ADMIN')
+  );

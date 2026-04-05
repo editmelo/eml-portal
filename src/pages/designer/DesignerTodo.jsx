@@ -1,30 +1,24 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import PortalLayout from '../../components/layout/PortalLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import { Card, CardBody } from '../../components/ui/Card'
 import useAuthStore, { selectUser } from '../../store/authStore'
-import useProjectStore from '../../store/projectStore'
+import useTodos from '../../hooks/useTodos'
 import { CheckCircle2, Circle, Trash2, Plus, Flag } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import toast from 'react-hot-toast'
-import { useRef } from 'react'
 
 export default function DesignerTodo() {
-  const user               = useAuthStore(selectUser)
-  const designerTodos      = useProjectStore((s) => s.designerTodos)
-  const addDesignerTodo    = useProjectStore((s) => s.addDesignerTodo)
-  const toggleDesignerTodo = useProjectStore((s) => s.toggleDesignerTodo)
-  const deleteDesignerTodo = useProjectStore((s) => s.deleteDesignerTodo)
-  const setPriority        = useProjectStore((s) => s.setDesignerTodoPriority)
+  const user = useAuthStore(selectUser)
+  const { todos, loading, addTodo, toggleTodo, deleteTodo, setPriority } = useTodos(user?.id)
 
   const [newText,     setNewText]     = useState('')
   const [isPriority,  setIsPriority]  = useState(false)
-  const [filter,      setFilter]      = useState('all') // all | priority | done
+  const [filter,      setFilter]      = useState('all')
   const inputRef = useRef(null)
 
-  const todos   = designerTodos[user?.id] ?? []
-  const done    = todos.filter((t) => t.done).length
-  const pct     = todos.length > 0 ? Math.round((done / todos.length) * 100) : 0
+  const done = todos.filter((t) => t.done).length
+  const pct  = todos.length > 0 ? Math.round((done / todos.length) * 100) : 0
 
   const filtered = todos.filter((t) => {
     if (filter === 'priority') return t.isPriority && !t.done
@@ -32,7 +26,7 @@ export default function DesignerTodo() {
     return true
   })
 
-  const pending  = filtered.filter((t) => !t.done)
+  const pending   = filtered.filter((t) => !t.done)
   const completed = filtered.filter((t) => t.done)
 
   const handleAdd = () => {
@@ -41,7 +35,7 @@ export default function DesignerTodo() {
       inputRef.current?.focus()
       return
     }
-    addDesignerTodo(user?.id, newText.trim(), isPriority)
+    addTodo(newText.trim(), isPriority)
     toast.success(isPriority ? 'Priority task added!' : 'Task added!')
     setNewText('')
     setIsPriority(false)
@@ -49,7 +43,7 @@ export default function DesignerTodo() {
   }
 
   const handleDelete = (id) => {
-    deleteDesignerTodo(user.id, id)
+    deleteTodo(id)
     toast.success('Removed')
   }
 
@@ -103,7 +97,7 @@ export default function DesignerTodo() {
           <div className="flex gap-2">
             <input
               ref={inputRef}
-            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               placeholder="Add a new task…"
               value={newText}
               onChange={(e) => setNewText(e.target.value)}
@@ -116,21 +110,19 @@ export default function DesignerTodo() {
               <Plus size={15} /> Add
             </button>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer w-fit">
-            <button
-              type="button"
-              onClick={() => setIsPriority((p) => !p)}
-              className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
-                isPriority
-                  ? 'bg-red-50 text-red-600 border-red-200'
-                  : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-red-200 hover:text-red-400'
-              )}
-            >
-              <Flag size={11} />
-              {isPriority ? 'Priority — shows on dashboard' : 'Mark as priority'}
-            </button>
-          </label>
+          <button
+            type="button"
+            onClick={() => setIsPriority((p) => !p)}
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+              isPriority
+                ? 'bg-red-50 text-red-600 border-red-200'
+                : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-red-200 hover:text-red-400'
+            )}
+          >
+            <Flag size={11} />
+            {isPriority ? 'Priority — shows on dashboard' : 'Mark as priority'}
+          </button>
         </div>
 
         {/* Pending items */}
@@ -140,28 +132,19 @@ export default function DesignerTodo() {
             <ul className="space-y-1">
               {pending.map((todo) => (
                 <li key={todo.id} className="group flex items-start gap-3 py-2.5 border-b border-slate-50 last:border-0">
-                  <button
-                    onClick={() => toggleDesignerTodo(user.id, todo.id)}
-                    className="mt-0.5 shrink-0 text-slate-300 hover:text-brand-500 transition-colors"
-                  >
+                  <button onClick={() => toggleTodo(todo.id)} className="mt-0.5 shrink-0 text-slate-300 hover:text-brand-500 transition-colors">
                     <Circle size={18} />
                   </button>
                   <span className="flex-1 text-sm text-slate-700 leading-relaxed">{todo.text}</span>
                   <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
                     <button
-                      onClick={() => setPriority(user.id, todo.id, !todo.isPriority)}
+                      onClick={() => setPriority(todo.id, !todo.isPriority)}
                       title={todo.isPriority ? 'Remove priority' : 'Mark priority'}
-                      className={cn(
-                        'transition-colors',
-                        todo.isPriority ? 'text-red-400' : 'text-slate-300 hover:text-red-400'
-                      )}
+                      className={cn('transition-colors', todo.isPriority ? 'text-red-400' : 'text-slate-300 hover:text-red-400')}
                     >
                       <Flag size={13} />
                     </button>
-                    <button
-                      onClick={() => handleDelete(todo.id)}
-                      className="text-slate-300 hover:text-red-400 transition-colors"
-                    >
+                    <button onClick={() => handleDelete(todo.id)} className="text-slate-300 hover:text-red-400 transition-colors">
                       <Trash2 size={13} />
                     </button>
                   </div>
@@ -178,17 +161,11 @@ export default function DesignerTodo() {
             <ul className="space-y-1">
               {completed.map((todo) => (
                 <li key={todo.id} className="group flex items-start gap-3 py-2.5 border-b border-slate-50 last:border-0">
-                  <button
-                    onClick={() => toggleDesignerTodo(user.id, todo.id)}
-                    className="mt-0.5 shrink-0 text-emerald-500 hover:text-slate-300 transition-colors"
-                  >
+                  <button onClick={() => toggleTodo(todo.id)} className="mt-0.5 shrink-0 text-emerald-500 hover:text-slate-300 transition-colors">
                     <CheckCircle2 size={18} />
                   </button>
                   <span className="flex-1 text-sm text-slate-400 line-through leading-relaxed">{todo.text}</span>
-                  <button
-                    onClick={() => handleDelete(todo.id)}
-                    className="shrink-0 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all"
-                  >
+                  <button onClick={() => handleDelete(todo.id)} className="shrink-0 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all">
                     <Trash2 size={13} />
                   </button>
                 </li>
@@ -197,7 +174,7 @@ export default function DesignerTodo() {
           </div>
         )}
 
-        {filtered.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <CardBody className="text-center py-10">
             <p className="text-slate-400 text-sm">
               {filter === 'all' ? 'No tasks yet. Add one above!' :

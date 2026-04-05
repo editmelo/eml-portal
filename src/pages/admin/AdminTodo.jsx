@@ -2,29 +2,27 @@ import { useState, useRef } from 'react'
 import AdminLayout from '../../components/layout/AdminLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import { DarkCard } from '../../components/ui/Card'
-import useProjectStore from '../../store/projectStore'
+import useAuthStore, { selectUser } from '../../store/authStore'
 import useThemeStore from '../../store/themeStore'
+import useTodos from '../../hooks/useTodos'
 import { CheckCircle2, Circle, Trash2, Plus, Flag } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import toast from 'react-hot-toast'
 
 export default function AdminTodo() {
+  const user   = useAuthStore(selectUser)
   const isDark = useThemeStore((s) => s.adminTheme) === 'dark'
-  const adminTodos         = useProjectStore((s) => s.adminTodos)
-  const addAdminTodo       = useProjectStore((s) => s.addAdminTodo)
-  const toggleAdminTodo    = useProjectStore((s) => s.toggleAdminTodo)
-  const deleteAdminTodo    = useProjectStore((s) => s.deleteAdminTodo)
-  const setAdminTodoPriority = useProjectStore((s) => s.setAdminTodoPriority)
+  const { todos, loading, addTodo, toggleTodo, deleteTodo, setPriority } = useTodos(user?.id)
 
   const [newText,    setNewText]    = useState('')
   const [isPriority, setIsPriority] = useState(false)
-  const [filter,     setFilter]     = useState('all') // all | priority | done
+  const [filter,     setFilter]     = useState('all')
   const inputRef = useRef(null)
 
-  const done = adminTodos.filter((t) => t.done).length
-  const pct  = adminTodos.length > 0 ? Math.round((done / adminTodos.length) * 100) : 0
+  const done = todos.filter((t) => t.done).length
+  const pct  = todos.length > 0 ? Math.round((done / todos.length) * 100) : 0
 
-  const filtered = adminTodos.filter((t) => {
+  const filtered = todos.filter((t) => {
     if (filter === 'priority') return t.isPriority && !t.done
     if (filter === 'done')     return t.done
     return true
@@ -39,7 +37,7 @@ export default function AdminTodo() {
       inputRef.current?.focus()
       return
     }
-    addAdminTodo(newText.trim(), isPriority)
+    addTodo(newText.trim(), isPriority)
     toast.success(isPriority ? 'Priority task added!' : 'Task added!')
     setNewText('')
     setIsPriority(false)
@@ -47,7 +45,7 @@ export default function AdminTodo() {
   }
 
   const handleDelete = (id) => {
-    deleteAdminTodo(id)
+    deleteTodo(id)
     toast.success('Removed')
   }
 
@@ -63,7 +61,7 @@ export default function AdminTodo() {
       {/* Progress */}
       <div className="mb-6">
         <div className="flex justify-between text-sm text-slate-400 mb-2">
-          <span>{done} of {adminTodos.length} completed</span>
+          <span>{done} of {todos.length} completed</span>
           <span className="font-semibold text-slate-200">{pct}%</span>
         </div>
         <div className="h-2 bg-admin-bg rounded-full overflow-hidden border border-admin-border">
@@ -137,28 +135,19 @@ export default function AdminTodo() {
             <ul className="space-y-1">
               {pending.map((todo) => (
                 <li key={todo.id} className="group flex items-start gap-3 py-2.5 border-b border-admin-border/40 last:border-0">
-                  <button
-                    onClick={() => toggleAdminTodo(todo.id)}
-                    className="mt-0.5 shrink-0 text-slate-600 hover:text-brand-400 transition-colors"
-                  >
+                  <button onClick={() => toggleTodo(todo.id)} className="mt-0.5 shrink-0 text-slate-600 hover:text-brand-400 transition-colors">
                     <Circle size={18} />
                   </button>
                   <span className="flex-1 text-sm text-slate-300 leading-relaxed">{todo.text}</span>
                   <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
                     <button
-                      onClick={() => setAdminTodoPriority(todo.id, !todo.isPriority)}
+                      onClick={() => setPriority(todo.id, !todo.isPriority)}
                       title={todo.isPriority ? 'Remove priority' : 'Mark priority'}
-                      className={cn(
-                        'transition-colors',
-                        todo.isPriority ? 'text-red-400' : 'text-slate-600 hover:text-red-400'
-                      )}
+                      className={cn('transition-colors', todo.isPriority ? 'text-red-400' : 'text-slate-600 hover:text-red-400')}
                     >
                       <Flag size={13} />
                     </button>
-                    <button
-                      onClick={() => handleDelete(todo.id)}
-                      className="text-slate-600 hover:text-red-400 transition-colors"
-                    >
+                    <button onClick={() => handleDelete(todo.id)} className="text-slate-600 hover:text-red-400 transition-colors">
                       <Trash2 size={13} />
                     </button>
                   </div>
@@ -175,17 +164,11 @@ export default function AdminTodo() {
             <ul className="space-y-1">
               {completed.map((todo) => (
                 <li key={todo.id} className="group flex items-start gap-3 py-2.5 border-b border-admin-border/40 last:border-0">
-                  <button
-                    onClick={() => toggleAdminTodo(todo.id)}
-                    className="mt-0.5 shrink-0 text-emerald-500 hover:text-slate-500 transition-colors"
-                  >
+                  <button onClick={() => toggleTodo(todo.id)} className="mt-0.5 shrink-0 text-emerald-500 hover:text-slate-500 transition-colors">
                     <CheckCircle2 size={18} />
                   </button>
                   <span className="flex-1 text-sm text-slate-600 line-through leading-relaxed">{todo.text}</span>
-                  <button
-                    onClick={() => handleDelete(todo.id)}
-                    className="shrink-0 opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 transition-all"
-                  >
+                  <button onClick={() => handleDelete(todo.id)} className="shrink-0 opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 transition-all">
                     <Trash2 size={13} />
                   </button>
                 </li>
@@ -194,7 +177,7 @@ export default function AdminTodo() {
           </div>
         )}
 
-        {filtered.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div className="text-center py-10">
             <p className="text-slate-500 text-sm">
               {filter === 'all' ? 'No tasks yet. Add one above!' :
