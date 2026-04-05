@@ -276,11 +276,8 @@ const useAuthStore = create((set, get) => ({
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-profile`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(updatePayload),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...updatePayload, access_token: accessToken }),
       }
     )
     const result = await res.json()

@@ -3,7 +3,9 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 /**
  * update-profile — Updates a user's profile using service role (bypasses RLS).
- * Requires a valid auth session to verify the caller's identity.
+ *
+ * Since the browser's auth token may not pass through edge function CORS,
+ * we accept the access_token in the request body instead of the header.
  */
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -17,27 +19,27 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+    const body = await req.json()
+    const token = body.access_token
+
+    if (!token) {
+      return new Response(JSON.stringify({ error: 'Missing access_token in body' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // Verify the caller's identity
+    // Verify the caller using the token passed in the body
     const supabaseAuth = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
     )
     const { data: { user: caller }, error: authError } = await supabaseAuth.auth.getUser()
     if (authError || !caller) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      return new Response(JSON.stringify({ error: 'Invalid token — please log out and log back in' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
-
-    const body = await req.json()
 
     // Service role client — bypasses RLS
     const supabaseAdmin = createClient(
