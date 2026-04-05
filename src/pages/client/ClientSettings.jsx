@@ -123,6 +123,8 @@ function ProfileTab({ user }) {
   const businesses      = existingProfile?.businesses ?? []
   const activeBusinessId = existingProfile?.activeBusinessId ?? null
 
+  // Only reset form on initial load or user switch — NOT on every metadata change
+  // (otherwise form reverts after save when getUser() returns stale data)
   useEffect(() => {
     setForm({
       name:     user?.name     ?? '',
@@ -131,7 +133,7 @@ function ProfileTab({ user }) {
       nickname: user?.nickname ?? '',
     })
     setAvatar(existingProfile?.avatar ?? user?.avatar ?? null)
-  }, [user?.id, user?.name, user?.phone, user?.nickname, user?.avatar])
+  }, [user?.id])
 
   const INPUT = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30 bg-white'
   const LABEL = 'block text-xs font-medium text-slate-500 mb-1.5'
@@ -201,11 +203,34 @@ function ProfileTab({ user }) {
     setActiveBusinessId(user?.id, bizId)
   }
 
-  const handleSave = () => {
-    updateUser({ ...form })
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    setSaving(true)
+    // Save to local store first
     saveClientProfile(user?.id, { avatar, phone: form.phone, name: form.name })
-    saveProfile({ name: form.name, phone: form.phone, nickname: form.nickname, avatar })
+
+    // Save to Supabase (profiles table + auth metadata)
+    const result = await saveProfile({ name: form.name, phone: form.phone, nickname: form.nickname, avatar })
+
+    // Also write name directly to profiles table as backup
+    await supabase.from('profiles').update({
+      name:     form.name,
+      phone:    form.phone,
+      nickname: form.nickname,
+    }).eq('id', user?.id)
+
+    setSaving(false)
+
+    if (result?.success === false) {
+      toast.error(result.error || 'Save failed — try logging out and back in')
+      return
+    }
+
+    // Only update local user state after confirmed save
+    updateUser({ ...form })
     setSaved(true)
+    toast.success('Profile saved!')
     setTimeout(() => setSaved(false), 2500)
   }
 
@@ -269,9 +294,10 @@ function ProfileTab({ user }) {
         <div className="flex items-center gap-3">
           <button
             onClick={handleSave}
-            className="px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors"
+            disabled={saving}
+            className="px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors disabled:opacity-60"
           >
-            Save Changes
+            {saving ? 'Saving…' : 'Save Changes'}
           </button>
           {saved && (
             <span className="text-sm font-medium flex items-center gap-1.5 text-brand-500">
