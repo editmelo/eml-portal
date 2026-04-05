@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AdminLayout from '../../components/layout/AdminLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import { DarkCard } from '../../components/ui/Card'
@@ -6,8 +6,9 @@ import { Badge } from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import useProjectStore from '../../store/projectStore'
 import useThemeStore from '../../store/themeStore'
+import { supabase } from '../../lib/supabase'
 import { formatCurrency, formatDate } from '../../lib/utils'
-import { UserPlus, Pencil, Trash2, X, ChevronDown, Rocket, ExternalLink, Undo2 } from 'lucide-react'
+import { UserPlus, Pencil, Trash2, X, ChevronDown, Rocket, ExternalLink, Undo2, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 
@@ -162,9 +163,62 @@ export default function AdminLeads() {
   const deleteLead     = useProjectStore((s) => s.deleteLead)
   const createProject  = useProjectStore((s) => s.createProject)
   const deleteProject  = useProjectStore((s) => s.deleteProject)
-  const [showAdd, setShowAdd] = useState(false)
+  const [showAdd, setShowAdd]         = useState(false)
   const [editingLead, setEditingLead] = useState(null)
   const [confirmPush, setConfirmPush] = useState(null)
+  const [syncing, setSyncing]         = useState(false)
+
+  // Auto-import new leads from lead_inbox table on mount
+  const syncLeadInbox = async () => {
+    setSyncing(true)
+    try {
+      const { data, error } = await supabase
+        .from('lead_inbox')
+        .select('*')
+        .eq('imported', false)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      if (!data || data.length === 0) {
+        setSyncing(false)
+        return 0
+      }
+
+      let imported = 0
+      for (const row of data) {
+        // Check for duplicate by email
+        const alreadyExists = leads.some(
+          (l) => l.email && row.email && l.email.toLowerCase() === row.email.toLowerCase()
+        )
+        if (!alreadyExists) {
+          addLead({
+            name:           row.name,
+            company:        row.company || '',
+            email:          row.email || '',
+            phone:          row.phone || '',
+            service:        row.service || '',
+            potentialValue: 0,
+            source:         row.source || 'Website',
+            status:         'New Lead',
+            submittedAt:    row.created_at,
+            notes:          row.notes || '',
+            inboxId:        row.id,
+          })
+          imported++
+        }
+        // Mark as imported in Supabase
+        await supabase.from('lead_inbox').update({ imported: true }).eq('id', row.id)
+      }
+      if (imported > 0) toast.success(`${imported} new lead${imported > 1 ? 's' : ''} imported!`)
+      return imported
+    } catch (err) {
+      console.error('Lead inbox sync error:', err)
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  useEffect(() => { syncLeadInbox() }, [])
 
   const CLOSED_STATUSES = ['Booked', 'Pushed to Project', 'Lost']
   const visibleLeads = leads.filter((l) => l.status !== 'Pushed to Project')
@@ -227,9 +281,20 @@ export default function AdminLeads() {
         title="Lead Management"
         subtitle={`${openLeads.length} open leads · ${formatCurrency(totalPotential)} potential revenue`}
         actions={
-          <Button size="sm" icon={<UserPlus size={14} />} onClick={() => setShowAdd(true)}>
-            Add Lead
-          </Button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={syncLeadInbox}
+              disabled={syncing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-admin-border text-xs font-medium text-slate-400 hover:text-brand-400 hover:border-brand-400/50 transition-colors disabled:opacity-50"
+              title="Sync leads from Google Calendar & website form"
+            >
+              <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
+              {syncing ? 'Syncing…' : 'Sync'}
+            </button>
+            <Button size="sm" icon={<UserPlus size={14} />} onClick={() => setShowAdd(true)}>
+              Add Lead
+            </Button>
+          </div>
         }
         className="mb-8"
       />

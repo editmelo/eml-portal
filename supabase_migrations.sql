@@ -259,3 +259,43 @@ SET businesses = jsonb_build_array(
 WHERE business IS NOT NULL
   AND business != ''
   AND (businesses IS NULL OR businesses = '[]'::jsonb);
+
+
+-- ============================================================================
+-- 8. LEAD INBOX TABLE — auto-populated by Google Calendar + Sheet webhooks
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS lead_inbox (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        text NOT NULL,
+  email       text,
+  phone       text,
+  company     text,
+  service     text,
+  source      text DEFAULT 'Website',       -- 'Google Calendar', 'Website Form', etc.
+  notes       text,
+  meta        jsonb DEFAULT '{}',            -- extra fields from the form/calendar
+  imported    boolean DEFAULT false,         -- true once pulled into the portal
+  created_at  timestamptz DEFAULT now()
+);
+
+ALTER TABLE lead_inbox ENABLE ROW LEVEL SECURITY;
+
+-- Admins can read/manage the inbox
+DROP POLICY IF EXISTS "Admins can manage lead inbox" ON lead_inbox;
+CREATE POLICY "Admins can manage lead inbox"
+  ON lead_inbox FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'ADMIN')
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'ADMIN')
+  );
+
+-- Service role can do everything (for the ingest edge function)
+DROP POLICY IF EXISTS "Service role manages lead inbox" ON lead_inbox;
+CREATE POLICY "Service role manages lead inbox"
+  ON lead_inbox FOR ALL
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
