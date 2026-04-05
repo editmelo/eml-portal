@@ -260,7 +260,6 @@ const useAuthStore = create((set, get) => ({
     }
 
     // Write directly to profiles table — this is the source of truth
-    // Use .select() to verify the update actually affected a row (RLS can silently block)
     const updatePayload = {
       name:       payload.name,
       business:   payload.business,
@@ -270,11 +269,17 @@ const useAuthStore = create((set, get) => ({
       avatar_url: payload.avatar_url,
     }
 
+    // Debug: log session state
+    const uid = session.user?.id
+    console.log('[saveProfile] uid:', uid, 'profile id:', current.id, 'match:', uid === current.id)
+
     const { data, error } = await supabase
       .from('profiles')
       .update(updatePayload)
-      .eq('id', current.id)
+      .eq('id', uid)  // use session uid directly instead of current.id
       .select()
+
+    console.log('[saveProfile] update result:', { data, error })
 
     if (error) {
       console.error('[authStore] profiles update error:', error.message, error)
@@ -282,16 +287,17 @@ const useAuthStore = create((set, get) => ({
     }
 
     if (!data || data.length === 0) {
-      // RLS silently blocked the update — try upsert as fallback
-      console.warn('[authStore] update returned 0 rows, trying upsert...')
+      // RLS blocked — try upsert with session uid
+      console.warn('[authStore] update returned 0 rows, trying upsert with uid:', uid)
       const { data: d2, error: e2 } = await supabase
         .from('profiles')
-        .upsert({ id: current.id, email: current.email, ...updatePayload })
+        .upsert({ id: uid, email: current.email, ...updatePayload })
         .select()
 
+      console.log('[saveProfile] upsert result:', { data: d2, error: e2 })
+
       if (e2 || !d2?.length) {
-        console.error('[authStore] upsert also failed:', e2?.message)
-        return { success: false, error: 'Could not save profile — please log out and log back in' }
+        return { success: false, error: `Save failed (uid: ${uid?.slice(0,8)}). Open console for details.` }
       }
     }
 
