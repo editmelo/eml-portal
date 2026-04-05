@@ -53,7 +53,8 @@ function ClientModal({ client, onClose, isDark }) {
   )
   const avatar         = clientProfile?.avatar ?? null
   const displayName    = clientProfile?.name ?? client.name
-  const company        = clientProfile?.company ?? client.company ?? null
+  const businesses     = clientProfile?.businesses ?? []
+  const company        = businesses.map((b) => b.name).join(', ') || (clientProfile?.company ?? client.company ?? null)
   const phone          = clientProfile?.phone ?? client.phone ?? null
 
   const [activeTab, setActiveTab] = useState('profile')
@@ -465,7 +466,8 @@ function PersonCard({ person, type, isDark }) {
   const personProjects = getProjects(person.id, projects)
   const avatar  = clientProfile?.avatar ?? null
   const displayName = clientProfile?.name ?? designerProfile?.name ?? person.name
-  const company = clientProfile?.company ?? person.company ?? null
+  const clientBiz = clientProfile?.businesses ?? []
+  const company = clientBiz.length > 0 ? clientBiz.map((b) => b.name).join(', ') : (clientProfile?.company ?? person.company ?? null)
   const specialty = designerProfile?.specialty ?? person.specialty ?? null
 
   return (

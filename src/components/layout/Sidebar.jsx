@@ -5,8 +5,10 @@ import {
   ClipboardList, FolderOpen, Image, Receipt, Calendar,
   Upload, DollarSign, FileText, LogOut, Settings,
   ListChecks, ScrollText, CalendarDays, UserCircle, ChevronDown, Mail, X,
+  Building2, Check,
 } from 'lucide-react'
 import useAuthStore, { selectUser, selectRole, selectViewRole } from '../../store/authStore'
+import useProjectStore from '../../store/projectStore'
 import useThemeStore from '../../store/themeStore'
 import { NAV_CONFIG, ROLES } from '../../lib/constants'
 import { cn } from '../../lib/utils'
@@ -96,7 +98,16 @@ export default function Sidebar({ open, onClose }) {
   const navigate    = useNavigate()
   const [switchOpen, setSwitchOpen] = useState(false)
 
+  const clientProfile      = useProjectStore((s) => s.clientProfiles[user?.id])
+  const setActiveBusinessId = useProjectStore((s) => s.setActiveBusinessId)
+  const [bizOpen, setBizOpen] = useState(false)
+
   const navItems = NAV_CONFIG[viewRole] ?? []
+  const businesses = clientProfile?.businesses ?? []
+  const activeBusinessId = clientProfile?.activeBusinessId
+  const activeBusiness = businesses.find((b) => b.id === activeBusinessId)
+  const isClient = viewRole === ROLES.CLIENT
+  const hasMultipleBusinesses = isClient && businesses.length > 1
 
   let theme = portalTheme === 'dark' ? PORTAL_DARK : CLIENT_THEME
   if (role === ROLES.ADMIN && viewRole === ROLES.ADMIN) {
@@ -201,6 +212,59 @@ export default function Sidebar({ open, onClose }) {
             <X size={18} />
           </button>
         </div>
+
+        {/* Business switcher — clients with multiple businesses */}
+        {isClient && businesses.length > 0 && (
+          <div className={cn('px-3 py-2.5 border-b', theme.divider)}>
+            {hasMultipleBusinesses ? (
+              <div className="relative">
+                <button
+                  onClick={() => setBizOpen((o) => !o)}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors',
+                    portalTheme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-slate-50'
+                  )}
+                >
+                  <Building2 size={13} className={theme.roleLabel} />
+                  <span className={cn('text-xs font-medium flex-1 truncate', theme.userText)}>
+                    {activeBusiness?.name ?? 'Select business'}
+                  </span>
+                  <ChevronDown size={11} className={cn('shrink-0', theme.roleText)} />
+                </button>
+                {bizOpen && (
+                  <div className={cn(
+                    'absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border shadow-xl overflow-hidden',
+                    portalTheme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'
+                  )}>
+                    {businesses.map((biz) => {
+                      const isActive = biz.id === activeBusinessId
+                      return (
+                        <button
+                          key={biz.id}
+                          onClick={() => { setActiveBusinessId(user?.id, biz.id); setBizOpen(false) }}
+                          className={cn(
+                            'w-full flex items-center gap-2 px-3 py-2.5 text-xs transition-colors text-left',
+                            isActive
+                              ? portalTheme === 'dark' ? 'bg-brand-500/10 text-brand-400 font-semibold' : 'bg-brand-500/10 text-brand-500 font-semibold'
+                              : portalTheme === 'dark' ? 'text-slate-300 hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50'
+                          )}
+                        >
+                          {isActive && <Check size={11} className="shrink-0" />}
+                          <span className="truncate">{biz.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-2.5 py-1">
+                <Building2 size={13} className={theme.roleText} />
+                <span className={cn('text-xs truncate', theme.userSub)}>{businesses[0]?.name}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-2 no-scrollbar">

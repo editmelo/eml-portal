@@ -27,7 +27,8 @@ export default function ClientTodo() {
   const toggleTodo = useProjectStore((s) => s.toggleTodo)
   const deleteTodo = useProjectStore((s) => s.deleteTodo)
 
-  const project   = projects.find((p) => p.id === user?.projectId)
+  const getActiveClientProject = useProjectStore((s) => s.getActiveClientProject)
+  const project   = getActiveClientProject(user?.id) ?? projects.find((p) => p.id === user?.projectId)
   const projectId = project?.id ?? `guest_${user?.id}`
 
   const [newText, setNewText] = useState('')

@@ -16,7 +16,8 @@ export default function ClientDashboard() {
   const invoices = useProjectStore((s) => s.invoices)
   const navigate = useNavigate()
 
-  const project = projects.find((p) => p.id === user?.projectId)
+  const getActiveClientProject = useProjectStore((s) => s.getActiveClientProject)
+  const project = getActiveClientProject(user?.id) ?? projects.find((p) => p.id === user?.projectId)
   const myInvoices = invoices.filter((i) => i.clientId === user?.id)
   const pendingInvoices = myInvoices.filter((i) => i.status === 'Pending')
 

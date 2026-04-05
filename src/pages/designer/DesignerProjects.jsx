@@ -121,7 +121,10 @@ function ClientProfileModal({ clientId, project, onClose }) {
   const clientUser = getClientUser(clientId)
   const displayName = clientProfile?.name ?? clientUser?.name ?? 'Client'
   const avatar      = clientProfile?.avatar ?? null
-  const company     = clientProfile?.company ?? clientUser?.company ?? null
+  const clientBiz   = clientProfile?.businesses ?? []
+  const company     = clientBiz.length > 0
+    ? (project?.businessId ? clientBiz.find((b) => b.id === project.businessId)?.name : clientBiz[0]?.name)
+    : (clientProfile?.company ?? clientUser?.company ?? null)
   const phone       = clientProfile?.phone ?? clientUser?.phone ?? null
   const email       = clientUser?.email ?? null
 

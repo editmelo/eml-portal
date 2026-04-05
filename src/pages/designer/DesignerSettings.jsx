@@ -435,8 +435,32 @@ export default function DesignerSettings() {
     <PortalLayout>
       <PageHeader title="Settings" subtitle="Manage your profile and portal preferences." className="mb-6" />
 
+      {/* ── Mobile: horizontal scrollable tab pills ── */}
+      <div className="flex md:hidden gap-2 overflow-x-auto no-scrollbar pb-1 mb-4">
+        {TABS.map((tab) => {
+          const Icon = tab.icon
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap shrink-0 transition-colors border',
+                isActive
+                  ? 'bg-brand-500/10 text-brand-500 border-brand-500/20'
+                  : 'border-slate-200 text-slate-500 hover:text-slate-700'
+              )}
+            >
+              <Icon size={14} className="shrink-0" />
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── Desktop: sidebar + content side by side ── */}
       <div className="flex gap-6">
-        <nav className="w-40 shrink-0 self-start rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
+        <nav className="hidden md:block w-44 shrink-0 self-start rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
           <ul className="py-1.5">
             {TABS.map((tab) => {
               const Icon = tab.icon

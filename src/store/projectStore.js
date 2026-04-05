@@ -442,6 +442,66 @@ const useProjectStore = create(
 
   getClientProfile: (userId) => get().clientProfiles[userId] ?? null,
 
+  // ── Client Business Actions ───────────────────────────────────────────────
+
+  addClientBusiness: (userId, name) => {
+    const biz = { id: `biz_${Date.now()}`, name, createdAt: new Date().toISOString() }
+    set((state) => {
+      const profile = state.clientProfiles[userId] ?? {}
+      const businesses = [...(profile.businesses ?? []), biz]
+      return {
+        clientProfiles: {
+          ...state.clientProfiles,
+          [userId]: { ...profile, businesses, activeBusinessId: profile.activeBusinessId ?? biz.id },
+        },
+      }
+    })
+    return get().clientProfiles[userId]?.businesses ?? []
+  },
+
+  removeClientBusiness: (userId, bizId) => {
+    set((state) => {
+      const profile = state.clientProfiles[userId] ?? {}
+      const businesses = (profile.businesses ?? []).filter((b) => b.id !== bizId)
+      const activeBusinessId = profile.activeBusinessId === bizId
+        ? (businesses[0]?.id ?? null)
+        : profile.activeBusinessId
+      return {
+        clientProfiles: {
+          ...state.clientProfiles,
+          [userId]: { ...profile, businesses, activeBusinessId },
+        },
+      }
+    })
+  },
+
+  renameClientBusiness: (userId, bizId, newName) => {
+    set((state) => {
+      const profile = state.clientProfiles[userId] ?? {}
+      const businesses = (profile.businesses ?? []).map((b) =>
+        b.id === bizId ? { ...b, name: newName } : b
+      )
+      return {
+        clientProfiles: {
+          ...state.clientProfiles,
+          [userId]: { ...profile, businesses },
+        },
+      }
+    })
+  },
+
+  setActiveBusinessId: (userId, bizId) => {
+    set((state) => {
+      const profile = state.clientProfiles[userId] ?? {}
+      return {
+        clientProfiles: {
+          ...state.clientProfiles,
+          [userId]: { ...profile, activeBusinessId: bizId },
+        },
+      }
+    })
+  },
+
   // ── Selectors (callable inside components via store) ───────────────────────
 
   /** Projects visible to a specific designer */
@@ -451,6 +511,15 @@ const useProjectStore = create(
   /** The project linked to a specific client */
   getClientProject: (projectId) =>
     get().projects.find((p) => p.id === projectId) ?? null,
+
+  /** The project for a client filtered by their active business */
+  getActiveClientProject: (userId) => {
+    const profile = get().clientProfiles[userId]
+    const activeBusinessId = profile?.activeBusinessId
+    return get().projects.find((p) =>
+      p.clientId === userId && (!activeBusinessId || !p.businessId || p.businessId === activeBusinessId)
+    ) ?? null
+  },
 
   /** All active projects (for admin glance) */
   getActiveProjects: () =>
@@ -464,7 +533,7 @@ const useProjectStore = create(
   }),
     {
       name: 'eml_project_store',
-      version: 4,
+      version: 5,
       migrate: (persistedState, fromVersion) => {
         if (fromVersion < 3) {
           return {
@@ -475,15 +544,32 @@ const useProjectStore = create(
             financials: { monthlyRevenue: 0, monthlyExpenses: 0, ytdRevenue: 0, ytdExpenses: 0, goalMonthly: 5000, goalYearly: 60000, monthlyBreakdown: [] },
           }
         }
+        let state = { ...persistedState }
         // v3→v4: fix duplicate todo IDs caused by Date.now() in sync loops
-        const fixedTodos = {}
-        for (const [key, list] of Object.entries(persistedState.todos ?? {})) {
-          fixedTodos[key] = (list ?? []).map((t, i) => ({
-            ...t,
-            id: `todo_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 9)}`,
-          }))
+        if (fromVersion < 4) {
+          const fixedTodos = {}
+          for (const [key, list] of Object.entries(state.todos ?? {})) {
+            fixedTodos[key] = (list ?? []).map((t, i) => ({
+              ...t,
+              id: `todo_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 9)}`,
+            }))
+          }
+          state = { ...state, todos: fixedTodos }
         }
-        return { ...persistedState, todos: fixedTodos }
+        // v4→v5: migrate single company string to businesses array
+        if (fromVersion < 5) {
+          const migratedProfiles = {}
+          for (const [userId, profile] of Object.entries(state.clientProfiles ?? {})) {
+            if (profile.company && !profile.businesses?.length) {
+              const biz = { id: `biz_${Date.now()}_${userId.slice(0, 8)}`, name: profile.company, createdAt: new Date().toISOString() }
+              migratedProfiles[userId] = { ...profile, businesses: [biz], activeBusinessId: biz.id }
+            } else {
+              migratedProfiles[userId] = { ...profile, businesses: profile.businesses ?? [], activeBusinessId: profile.activeBusinessId ?? null }
+            }
+          }
+          state = { ...state, clientProfiles: migratedProfiles }
+        }
+        return state
       },
       partialize: (state) => ({
         projects:        state.projects,

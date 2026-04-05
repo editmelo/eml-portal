@@ -164,7 +164,8 @@ export default function ClientDrafts() {
   const user     = useAuthStore(selectUser)
   const projects = useProjectStore((s) => s.projects)
 
-  const project = projects.find((p) => p.id === user?.projectId)
+  const getActiveClientProject = useProjectStore((s) => s.getActiveClientProject)
+  const project = getActiveClientProject(user?.id) ?? projects.find((p) => p.id === user?.projectId)
   const drafts  = project?.drafts ?? []
 
   const [preview, setPreview] = useState(null)

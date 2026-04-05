@@ -14,8 +14,9 @@ function shapeUser(supabaseUser) {
     avatar:    meta.avatar_url ?? null,
     projectId: meta.projectId ?? null,
     phone:     meta.phone    ?? null,
-    business:  meta.business ?? null,
-    nickname:  meta.nickname ?? null,
+    business:    meta.business ?? null,
+    businesses:  meta.businesses ?? [],
+    nickname:    meta.nickname ?? null,
   }
 }
 
@@ -217,6 +218,7 @@ const useAuthStore = create((set, get) => ({
       data: {
         name:       patch.name     ?? current.name,
         business:   patch.business ?? current.business,
+        businesses: patch.businesses ?? current.businesses ?? [],
         phone:      patch.phone    ?? current.phone,
         nickname:   patch.nickname ?? current.nickname,
         avatar_url: patch.avatar   ?? current.avatar,
@@ -228,6 +230,7 @@ const useAuthStore = create((set, get) => ({
       id:         current.id,
       name:       patch.name     ?? current.name,
       business:   patch.business ?? current.business,
+      businesses: patch.businesses ?? current.businesses ?? [],
       phone:      patch.phone    ?? current.phone,
       nickname:   patch.nickname ?? current.nickname,
       avatar_url: patch.avatar   ?? current.avatar,

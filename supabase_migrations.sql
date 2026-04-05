@@ -238,3 +238,24 @@ CREATE POLICY "Service role manages meetings"
   ON zoom_meetings FOR ALL
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
+
+
+-- ============================================================================
+-- 7. MULTI-BUSINESS SUPPORT FOR CLIENTS
+-- ============================================================================
+
+-- Add businesses JSONB column to profiles (array of { id, name, createdAt })
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS businesses jsonb DEFAULT '[]';
+
+-- Backfill: convert existing single `business` text field into businesses array
+UPDATE profiles
+SET businesses = jsonb_build_array(
+  jsonb_build_object(
+    'id',        'biz_' || EXTRACT(EPOCH FROM now())::bigint || '_' || LEFT(id::text, 8),
+    'name',      business,
+    'createdAt', now()::text
+  )
+)
+WHERE business IS NOT NULL
+  AND business != ''
+  AND (businesses IS NULL OR businesses = '[]'::jsonb);

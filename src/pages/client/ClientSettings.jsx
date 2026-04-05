@@ -10,6 +10,7 @@ import {
   User, BookOpen, Bell, Check, Camera, Monitor, Moon, Sun,
   LayoutDashboard, ClipboardList, FolderOpen, Image,
   Receipt, Calendar, ListChecks, ScrollText, Settings,
+  Building2, Plus, Trash2, Pencil, X,
 } from 'lucide-react'
 
 const TABS = [
@@ -94,27 +95,36 @@ function Toggle({ enabled, onToggle }) {
 
 // ── Profile Tab ───────────────────────────────────────────────────────────────
 function ProfileTab({ user }) {
-  const updateUser        = useAuthStore((s) => s.updateUser)
-  const saveProfile       = useAuthStore((s) => s.saveProfile)
-  const saveClientProfile = useProjectStore((s) => s.saveClientProfile)
-  const existingProfile   = useProjectStore((s) => s.clientProfiles[user?.id])
+  const updateUser          = useAuthStore((s) => s.updateUser)
+  const saveProfile         = useAuthStore((s) => s.saveProfile)
+  const saveClientProfile   = useProjectStore((s) => s.saveClientProfile)
+  const addClientBusiness   = useProjectStore((s) => s.addClientBusiness)
+  const removeClientBusiness = useProjectStore((s) => s.removeClientBusiness)
+  const renameClientBusiness = useProjectStore((s) => s.renameClientBusiness)
+  const setActiveBusinessId = useProjectStore((s) => s.setActiveBusinessId)
+  const existingProfile     = useProjectStore((s) => s.clientProfiles[user?.id])
 
   const [form, setForm] = useState({
     name:     user?.name     ?? '',
     email:    user?.email    ?? '',
-    company:  user?.company  ?? '',
     phone:    user?.phone    ?? '',
     nickname: user?.nickname ?? '',
   })
-  const [avatar, setAvatar] = useState(existingProfile?.avatar ?? null)
-  const [saved, setSaved]   = useState(false)
-  const fileRef             = useRef(null)
+  const [avatar, setAvatar]         = useState(existingProfile?.avatar ?? null)
+  const [saved, setSaved]           = useState(false)
+  const [newBizName, setNewBizName] = useState('')
+  const [addingBiz, setAddingBiz]   = useState(false)
+  const [editingBiz, setEditingBiz] = useState(null)   // bizId being edited
+  const [editName, setEditName]     = useState('')
+  const fileRef                     = useRef(null)
+
+  const businesses      = existingProfile?.businesses ?? []
+  const activeBusinessId = existingProfile?.activeBusinessId ?? null
 
   useEffect(() => {
     setForm({
       name:     user?.name     ?? '',
       email:    user?.email    ?? '',
-      company:  user?.company  ?? '',
       phone:    user?.phone    ?? '',
       nickname: user?.nickname ?? '',
     })
@@ -132,88 +142,238 @@ function ProfileTab({ user }) {
     reader.readAsDataURL(file)
   }
 
+  const handleAddBusiness = () => {
+    if (!newBizName.trim()) return
+    const updated = addClientBusiness(user?.id, newBizName.trim())
+    saveProfile({ businesses: updated })
+    setNewBizName('')
+    setAddingBiz(false)
+  }
+
+  const handleRemoveBusiness = (bizId) => {
+    removeClientBusiness(user?.id, bizId)
+    const profile = useProjectStore.getState().clientProfiles[user?.id]
+    saveProfile({ businesses: profile?.businesses ?? [] })
+  }
+
+  const handleRenameBusiness = (bizId) => {
+    if (!editName.trim()) return
+    renameClientBusiness(user?.id, bizId, editName.trim())
+    const profile = useProjectStore.getState().clientProfiles[user?.id]
+    saveProfile({ businesses: profile?.businesses ?? [] })
+    setEditingBiz(null)
+    setEditName('')
+  }
+
+  const handleSetActive = (bizId) => {
+    setActiveBusinessId(user?.id, bizId)
+  }
+
   const handleSave = () => {
     updateUser({ ...form })
-    saveClientProfile(user?.id, { avatar, company: form.company, phone: form.phone, name: form.name })
+    saveClientProfile(user?.id, { avatar, phone: form.phone, name: form.name })
     saveProfile({ name: form.name, phone: form.phone, nickname: form.nickname, avatar })
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
 
   return (
-    <Card className="p-5 space-y-5">
-      {/* Avatar + name row */}
-      <div className="flex items-center gap-4">
-        <div className="relative shrink-0">
-          <div className="h-16 w-16 rounded-full overflow-hidden bg-brand-500/10 flex items-center justify-center text-xl font-bold text-brand-500">
-            {avatar
-              ? <img src={avatar} alt="avatar" className="h-full w-full object-cover" />
-              : (form.name?.charAt(0) ?? 'C')
-            }
+    <div className="space-y-5">
+      <Card className="p-5 space-y-5">
+        {/* Avatar + name row */}
+        <div className="flex items-center gap-4">
+          <div className="relative shrink-0">
+            <div className="h-16 w-16 rounded-full overflow-hidden bg-brand-500/10 flex items-center justify-center text-xl font-bold text-brand-500">
+              {avatar
+                ? <img src={avatar} alt="avatar" className="h-full w-full object-cover" />
+                : (form.name?.charAt(0) ?? 'C')
+              }
+            </div>
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-brand-500 text-white flex items-center justify-center shadow hover:bg-brand-600 transition-colors"
+              title="Upload photo or logo"
+            >
+              <Camera size={11} />
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
           </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-800">{form.name}</p>
+            <p className="text-xs text-slate-400">{form.email}</p>
+            <span className="inline-block mt-1 text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded bg-brand-500/10 text-brand-500">
+              Client
+            </span>
+          </div>
+        </div>
+
+        <p className="text-[10px] text-slate-400 -mt-2">Click the camera icon to upload a profile photo or company logo.</p>
+
+        <div className="border-t border-slate-100 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className={LABEL}>Full Name</label>
+            <input className={INPUT} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          </div>
+          <div>
+            <label className={LABEL}>Email Address</label>
+            <input className={INPUT} type="email" value={form.email} readOnly className={cn(INPUT, 'bg-slate-50 text-slate-400 cursor-not-allowed')} />
+          </div>
+          <div>
+            <label className={LABEL}>Phone</label>
+            <input className={INPUT} type="tel" placeholder="(555) 000-0000" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+          </div>
+          <div>
+            <label className={LABEL}>Nickname <span className="font-normal text-slate-400">(optional)</span></label>
+            <input className={INPUT} placeholder="What would you like to be called?" value={form.nickname} onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))} />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => fileRef.current?.click()}
-            className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-brand-500 text-white flex items-center justify-center shadow hover:bg-brand-600 transition-colors"
-            title="Upload photo or logo"
+            onClick={handleSave}
+            className="px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors"
           >
-            <Camera size={11} />
+            Save Changes
           </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleAvatarChange}
-          />
+          {saved && (
+            <span className="text-sm font-medium flex items-center gap-1.5 text-brand-500">
+              <Check size={14} /> Saved!
+            </span>
+          )}
         </div>
-        <div>
-          <p className="text-sm font-semibold text-slate-800">{form.name}</p>
-          <p className="text-xs text-slate-400">{form.email}</p>
-          <span className="inline-block mt-1 text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded bg-brand-500/10 text-brand-500">
-            Client
-          </span>
-        </div>
-      </div>
+      </Card>
 
-      <p className="text-[10px] text-slate-400 -mt-2">Click the camera icon to upload a profile photo or company logo.</p>
+      {/* ── Businesses Section ── */}
+      <Card className="p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Building2 size={15} className="text-brand-500" />
+            <p className="text-sm font-semibold text-slate-800">Your Businesses</p>
+          </div>
+          {!addingBiz && (
+            <button
+              onClick={() => setAddingBiz(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-brand-500 border border-brand-500/20 hover:bg-brand-500/5 transition-colors"
+            >
+              <Plus size={12} /> Add Business
+            </button>
+          )}
+        </div>
 
-      <div className="border-t border-slate-100 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className={LABEL}>Full Name</label>
-          <input className={INPUT} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-        </div>
-        <div>
-          <label className={LABEL}>Email Address</label>
-          <input className={INPUT} type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
-        </div>
-        <div>
-          <label className={LABEL}>Company / Business Name</label>
-          <input className={INPUT} placeholder="Your company name" value={form.company} onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))} />
-        </div>
-        <div>
-          <label className={LABEL}>Phone</label>
-          <input className={INPUT} type="tel" placeholder="(555) 000-0000" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-        </div>
-        <div>
-          <label className={LABEL}>Nickname <span className="font-normal text-slate-400">(optional)</span></label>
-          <input className={INPUT} placeholder="What would you like to be called?" value={form.nickname} onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))} />
-        </div>
-      </div>
+        <p className="text-[10px] text-slate-400">
+          {businesses.length === 0
+            ? 'Add your business or company. You can manage multiple businesses from one account.'
+            : 'Click a business to set it as active. Your active business determines which project you see.'
+          }
+        </p>
 
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleSave}
-          className="px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors"
-        >
-          Save Changes
-        </button>
-        {saved && (
-          <span className="text-sm font-medium flex items-center gap-1.5 text-brand-500">
-            <Check size={14} /> Saved!
-          </span>
+        {/* Business list */}
+        {businesses.length > 0 && (
+          <div className="space-y-2">
+            {businesses.map((biz) => {
+              const isActive = activeBusinessId === biz.id
+              const isEditing = editingBiz === biz.id
+              return (
+                <div
+                  key={biz.id}
+                  className={cn(
+                    'flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl border transition-all',
+                    isActive
+                      ? 'border-brand-500/30 bg-brand-500/5'
+                      : 'border-slate-200 hover:border-slate-300'
+                  )}
+                >
+                  {isEditing ? (
+                    <div className="flex items-center gap-2 flex-1">
+                      <input
+                        autoFocus
+                        className={cn(INPUT, 'py-1.5')}
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleRenameBusiness(biz.id)}
+                      />
+                      <button onClick={() => handleRenameBusiness(biz.id)} className="text-brand-500 hover:text-brand-600">
+                        <Check size={14} />
+                      </button>
+                      <button onClick={() => { setEditingBiz(null); setEditName('') }} className="text-slate-400 hover:text-slate-600">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleSetActive(biz.id)}
+                        className="flex items-center gap-2.5 flex-1 text-left"
+                      >
+                        <div className={cn(
+                          'h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0',
+                          isActive ? 'border-brand-500 bg-brand-500' : 'border-slate-300'
+                        )}>
+                          {isActive && <Check size={9} className="text-white" />}
+                        </div>
+                        <span className={cn('text-sm font-medium', isActive ? 'text-brand-600' : 'text-slate-700')}>
+                          {biz.name}
+                        </span>
+                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => { setEditingBiz(biz.id); setEditName(biz.name) }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                          title="Rename"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        {businesses.length > 1 && (
+                          <button
+                            onClick={() => handleRemoveBusiness(biz.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                            title="Remove"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         )}
-      </div>
-    </Card>
+
+        {/* Add business inline form */}
+        {addingBiz && (
+          <div className="flex items-center gap-2">
+            <input
+              autoFocus
+              className={INPUT}
+              placeholder="Business name"
+              value={newBizName}
+              onChange={(e) => setNewBizName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddBusiness()}
+            />
+            <button
+              onClick={handleAddBusiness}
+              className="px-3 py-2 rounded-lg bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors shrink-0"
+            >
+              Add
+            </button>
+            <button
+              onClick={() => { setAddingBiz(false); setNewBizName('') }}
+              className="p-2 rounded-lg text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+      </Card>
+    </div>
   )
 }
 
@@ -360,9 +520,32 @@ export default function ClientSettings() {
         className="mb-6"
       />
 
+      {/* ── Mobile: horizontal scrollable tab pills ── */}
+      <div className="flex md:hidden gap-2 overflow-x-auto no-scrollbar pb-1 mb-4">
+        {TABS.map((tab) => {
+          const Icon = tab.icon
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap shrink-0 transition-colors border',
+                isActive
+                  ? 'bg-brand-500/10 text-brand-500 border-brand-500/20'
+                  : 'border-slate-200 text-slate-500 hover:text-slate-700'
+              )}
+            >
+              <Icon size={14} className="shrink-0" />
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── Desktop: sidebar + content side by side ── */}
       <div className="flex gap-6">
-        {/* Tab nav */}
-        <nav className="w-40 shrink-0 self-start rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
+        <nav className="hidden md:block w-44 shrink-0 self-start rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
           <ul className="py-1.5">
             {TABS.map((tab) => {
               const Icon = tab.icon
@@ -387,7 +570,6 @@ export default function ClientSettings() {
           </ul>
         </nav>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           {activeTab === 'profile'       && <ProfileTab user={user} />}
           {activeTab === 'notifications' && <NotificationsTab />}

@@ -43,7 +43,7 @@ serve(async (req) => {
     // Look up the invite
     const { data: invite, error: invErr } = await supabase
       .from('invites')
-      .select('id, email, owner_name, role, status')
+      .select('id, email, owner_name, role, status, company_name')
       .eq('id', inviteId)
       .single()
 
@@ -68,6 +68,11 @@ serve(async (req) => {
       })
     }
 
+    // Build initial businesses array from invite company name
+    const businesses = invite.company_name
+      ? [{ id: `biz_${Date.now()}`, name: invite.company_name, createdAt: new Date().toISOString() }]
+      : []
+
     // Create user with email auto-confirmed (no confirmation email needed)
     const { data: userData, error: createErr } = await supabase.auth.admin.createUser({
       email: invite.email,
@@ -76,6 +81,7 @@ serve(async (req) => {
       user_metadata: {
         name: invite.owner_name,
         role: invite.role,
+        businesses,
       },
     })
 
@@ -90,12 +96,14 @@ serve(async (req) => {
       throw createErr
     }
 
-    // Create profiles row
+    // Create profiles row with businesses
     await supabase.from('profiles').upsert({
-      id:    userData.user.id,
-      email: invite.email,
-      name:  invite.owner_name,
-      role:  invite.role,
+      id:         userData.user.id,
+      email:      invite.email,
+      name:       invite.owner_name,
+      role:       invite.role,
+      business:   invite.company_name || null,
+      businesses,
     })
 
     // Mark invite as accepted

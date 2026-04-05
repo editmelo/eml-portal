@@ -21,10 +21,12 @@ const STATUS_OPTIONS = Object.values(PROJECT_STATUS)
 
 // ── New Project Modal ─────────────────────────────────────────────────────────
 function NewProjectModal({ onClose, isDark, clients, designers }) {
-  const createProject = useProjectStore((s) => s.createProject)
+  const createProject  = useProjectStore((s) => s.createProject)
+  const clientProfiles = useProjectStore((s) => s.clientProfiles)
   const [form, setForm] = useState({
     name:           '',
     clientId:       '',
+    businessId:     '',
     designerIds:    [],
     status:         PROJECT_STATUS.NEW,
     startDate:      '',
@@ -35,7 +37,12 @@ function NewProjectModal({ onClose, isDark, clients, designers }) {
     tags:           '',
   })
 
-  const set_ = (field, val) => setForm((f) => ({ ...f, [field]: val }))
+  const selectedClientBusinesses = form.clientId ? (clientProfiles[form.clientId]?.businesses ?? []) : []
+
+  const set_ = (field, val) => {
+    setForm((f) => ({ ...f, [field]: val }))
+    if (field === 'clientId') setForm((f) => ({ ...f, clientId: val, businessId: '' }))
+  }
   const toggleDesigner = (id) => {
     setForm((f) => ({
       ...f,
@@ -50,6 +57,7 @@ function NewProjectModal({ onClose, isDark, clients, designers }) {
     createProject({
       name:           form.name.trim(),
       clientId:       form.clientId || null,
+      businessId:     form.businessId || null,
       designerIds:    form.designerIds,
       status:         form.status,
       startDate:      form.startDate || null,
@@ -88,6 +96,13 @@ function NewProjectModal({ onClose, isDark, clients, designers }) {
               <select className={SELECT} value={form.clientId} onChange={(e) => set_('clientId', e.target.value)}>
                 <option value="">— No client yet —</option>
                 {clients.map((c) => <option key={c.id} value={c.id}>{c.name || c.email}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL}>Business</label>
+              <select className={SELECT} value={form.businessId} onChange={(e) => set_('businessId', e.target.value)} disabled={!selectedClientBusinesses.length}>
+                <option value="">{selectedClientBusinesses.length ? '— Select business —' : '— No businesses —'}</option>
+                {selectedClientBusinesses.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
             <div>
@@ -156,10 +171,12 @@ function NewProjectModal({ onClose, isDark, clients, designers }) {
 
 // ── Edit Project Modal ────────────────────────────────────────────────────────
 function EditProjectModal({ project, onClose, isDark, clients, designers }) {
-  const updateProject = useProjectStore((s) => s.updateProject)
+  const updateProject  = useProjectStore((s) => s.updateProject)
+  const clientProfiles = useProjectStore((s) => s.clientProfiles)
   const [form, setForm] = useState({
     name:           project.name,
     clientId:       project.clientId ?? '',
+    businessId:     project.businessId ?? '',
     designerIds:    project.designerIds ?? [],
     status:         project.status,
     startDate:      project.startDate ?? '',
@@ -171,7 +188,12 @@ function EditProjectModal({ project, onClose, isDark, clients, designers }) {
     progress:       String(project.progress ?? 0),
   })
 
-  const set_ = (field, val) => setForm((f) => ({ ...f, [field]: val }))
+  const selectedClientBusinesses = form.clientId ? (clientProfiles[form.clientId]?.businesses ?? []) : []
+
+  const set_ = (field, val) => {
+    setForm((f) => ({ ...f, [field]: val }))
+    if (field === 'clientId') setForm((f) => ({ ...f, clientId: val, businessId: '' }))
+  }
   const toggleDesigner = (id) => {
     setForm((f) => ({
       ...f,
@@ -185,6 +207,7 @@ function EditProjectModal({ project, onClose, isDark, clients, designers }) {
     updateProject(project.id, {
       name:           form.name.trim(),
       clientId:       form.clientId || null,
+      businessId:     form.businessId || null,
       designerIds:    form.designerIds,
       status:         form.status,
       startDate:      form.startDate || null,
@@ -224,6 +247,13 @@ function EditProjectModal({ project, onClose, isDark, clients, designers }) {
               <select className={SELECT} value={form.clientId} onChange={(e) => set_('clientId', e.target.value)}>
                 <option value="">— No client —</option>
                 {clients.map((c) => <option key={c.id} value={c.id}>{c.name || c.email}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL}>Business</label>
+              <select className={SELECT} value={form.businessId} onChange={(e) => set_('businessId', e.target.value)} disabled={!selectedClientBusinesses.length}>
+                <option value="">{selectedClientBusinesses.length ? '— Select business —' : '— No businesses —'}</option>
+                {selectedClientBusinesses.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
             <div>

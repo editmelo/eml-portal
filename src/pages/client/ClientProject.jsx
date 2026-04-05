@@ -247,8 +247,10 @@ function ClientFolders({ clientId, projectId }) {
 export default function ClientProject() {
   const user     = useAuthStore(selectUser)
   const projects = useProjectStore((s) => s.projects)
-  // Match by clientId first (robust), fall back to projectId field on user
-  const project  = projects.find((p) => p.clientId === user?.id)
+  const getActiveClientProject = useProjectStore((s) => s.getActiveClientProject)
+  // Match by active business first, then clientId, then projectId fallback
+  const project  = getActiveClientProject(user?.id)
+    ?? projects.find((p) => p.clientId === user?.id)
     ?? projects.find((p) => p.id === user?.projectId)
 
   if (!project) {
