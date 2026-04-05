@@ -9,7 +9,7 @@ import useAuthStore, { selectUser } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
 import { formatDate } from '../../lib/utils'
 import { cn } from '../../lib/utils'
-import { CheckCircle2, Clock, Calendar, AlertCircle, StickyNote, Send, MessageCircle, FolderOpen } from 'lucide-react'
+import { CheckCircle2, Clock, Calendar, AlertCircle, StickyNote, Send, MessageCircle, FolderOpen, Sparkles, ChevronDown, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 // ── Timeline items with dates and notes ───────────────────────────────────────
@@ -244,6 +244,233 @@ function ClientFolders({ clientId, projectId }) {
   )
 }
 
+// ── Service Options ──────────────────────────────────────────────────────────
+const SERVICE_OPTIONS = [
+  'Logo Design',
+  'Brand Identity',
+  'Website Design',
+  'Website Redesign',
+  'Social Media Kit',
+  'Print Design',
+  'Packaging Design',
+  'Marketing Materials',
+  'Presentation Design',
+  'Merchandise Design',
+  'Other',
+]
+
+const TIMELINE_OPTIONS = [
+  'ASAP',
+  '1–2 Weeks',
+  '2–4 Weeks',
+  '1–2 Months',
+  '3+ Months',
+  'Flexible / No Rush',
+]
+
+const BUDGET_OPTIONS = [
+  'Under $500',
+  '$500 – $1,000',
+  '$1,000 – $2,500',
+  '$2,500 – $5,000',
+  '$5,000 – $10,000',
+  '$10,000+',
+  'Not Sure Yet',
+]
+
+// ── New Project Request Form ─────────────────────────────────────────────────
+function NewProjectRequest({ user }) {
+  const submitProjectRequest = useProjectStore((s) => s.submitProjectRequest)
+  const projectRequests      = useProjectStore((s) => s.projectRequests)
+  const existingProfile      = useProjectStore((s) => s.clientProfiles[user?.id])
+
+  const [open, setOpen]       = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [form, setForm]       = useState({
+    serviceType: '',
+    description: '',
+    timeline:    '',
+    budget:      '',
+    goal:        '',
+  })
+
+  const set_ = (field, val) => setForm((f) => ({ ...f, [field]: val }))
+
+  const canSubmit = form.serviceType && form.description.trim() && form.timeline && form.budget && form.goal.trim()
+
+  const handleSubmit = () => {
+    if (!canSubmit) return
+    submitProjectRequest({
+      clientId:    user?.id,
+      clientName:  user?.name ?? user?.email,
+      clientEmail: user?.email,
+      businessId:  existingProfile?.activeBusinessId ?? null,
+      ...form,
+      description: form.description.trim(),
+      goal:        form.goal.trim(),
+    })
+    setForm({ serviceType: '', description: '', timeline: '', budget: '', goal: '' })
+    setSubmitted(true)
+    toast.success('Project request submitted! We\'ll be in touch soon.')
+    setTimeout(() => setSubmitted(false), 4000)
+  }
+
+  const myRequests = projectRequests.filter((r) => r.clientId === user?.id)
+
+  const INPUT  = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 dark:placeholder-slate-500'
+  const SELECT = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/30 appearance-none dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100'
+  const LABEL  = 'block text-xs font-semibold text-slate-600 mb-1.5 dark:text-slate-300'
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles size={15} className="text-brand-500" />
+            <CardTitle>Request a New Project</CardTitle>
+          </div>
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors',
+              open
+                ? 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300'
+                : 'bg-brand-500 text-white hover:bg-brand-600'
+            )}
+          >
+            {open ? 'Cancel' : 'New Request'}
+          </button>
+        </div>
+        <p className="text-xs text-slate-400 mt-0.5">Want to start something new? Let us know what you have in mind.</p>
+      </CardHeader>
+
+      <CardBody className="pt-0">
+        {/* Form */}
+        {open && (
+          <div className="space-y-4 pt-4">
+            {/* Service Type */}
+            <div>
+              <label className={LABEL}>What would you like done? *</label>
+              <div className="relative">
+                <select className={SELECT} value={form.serviceType} onChange={(e) => set_('serviceType', e.target.value)}>
+                  <option value="">Select a service...</option>
+                  {SERVICE_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className={LABEL}>Describe what you're looking for *</label>
+              <textarea
+                className={cn(INPUT, 'resize-none')}
+                rows={3}
+                placeholder="In your own words, tell us about the project..."
+                value={form.description}
+                onChange={(e) => set_('description', e.target.value)}
+              />
+            </div>
+
+            {/* Timeline & Budget row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={LABEL}>Timeline *</label>
+                <div className="relative">
+                  <select className={SELECT} value={form.timeline} onChange={(e) => set_('timeline', e.target.value)}>
+                    <option value="">When do you need this?</option>
+                    {TIMELINE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+              <div>
+                <label className={LABEL}>Budget *</label>
+                <div className="relative">
+                  <select className={SELECT} value={form.budget} onChange={(e) => set_('budget', e.target.value)}>
+                    <option value="">What's your budget?</option>
+                    {BUDGET_OPTIONS.map((b) => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            {/* Goal */}
+            <div>
+              <label className={LABEL}>What's the overall goal? *</label>
+              <textarea
+                className={cn(INPUT, 'resize-none')}
+                rows={2}
+                placeholder="e.g. Launch a new product line, refresh our brand for a rebrand, increase social media presence..."
+                value={form.goal}
+                onChange={(e) => set_('goal', e.target.value)}
+              />
+            </div>
+
+            {/* Submit */}
+            <div className="flex justify-end pt-1">
+              <button
+                onClick={handleSubmit}
+                disabled={!canSubmit}
+                className={cn(
+                  'flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors',
+                  canSubmit
+                    ? 'bg-brand-500 text-white hover:bg-brand-600'
+                    : 'bg-slate-100 text-slate-400 cursor-not-allowed dark:bg-slate-700'
+                )}
+              >
+                <Send size={14} />
+                Submit Request
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Success callout */}
+        {submitted && !open && (
+          <div className="flex items-center gap-3 p-4 mt-4 rounded-xl bg-emerald-50 border border-emerald-200">
+            <Check size={18} className="text-emerald-500 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-emerald-800">Request submitted!</p>
+              <p className="text-xs text-emerald-600 mt-0.5">We'll review it and get back to you shortly.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Past requests */}
+        {myRequests.length > 0 && !open && (
+          <div className="space-y-2 pt-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Your Requests</p>
+            {myRequests.map((r) => (
+              <div key={r.id} className="flex items-start justify-between gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 dark:bg-slate-700/50 dark:border-slate-600">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{r.serviceType}</p>
+                  <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{r.description}</p>
+                  <div className="flex flex-wrap gap-2 mt-1.5">
+                    <span className="text-[10px] text-slate-400">{r.timeline}</span>
+                    <span className="text-[10px] text-slate-400">·</span>
+                    <span className="text-[10px] text-slate-400">{r.budget}</span>
+                  </div>
+                </div>
+                <span className={cn(
+                  'shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
+                  r.status === 'Pending'  && 'bg-amber-100 text-amber-700',
+                  r.status === 'Reviewed' && 'bg-blue-100 text-blue-700',
+                  r.status === 'Approved' && 'bg-emerald-100 text-emerald-700',
+                  r.status === 'Declined' && 'bg-red-100 text-red-700',
+                )}>
+                  {r.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardBody>
+    </Card>
+  )
+}
+
 export default function ClientProject() {
   const user     = useAuthStore(selectUser)
   const projects = useProjectStore((s) => s.projects)
@@ -256,9 +483,11 @@ export default function ClientProject() {
   if (!project) {
     return (
       <PortalLayout>
-        <div className="text-center py-20">
-          <p className="text-slate-400">No project linked to your account yet.</p>
+        <PageHeader title="My Project" subtitle="No active project yet" />
+        <div className="text-center py-12">
+          <p className="text-slate-400 mb-6">No project linked to your account yet.</p>
         </div>
+        <NewProjectRequest user={user} />
       </PortalLayout>
     )
   }
@@ -391,6 +620,11 @@ export default function ClientProject() {
       {/* ── Folders ── */}
       <div className="mt-6">
         <ClientFolders clientId={user.id} projectId={project.id} />
+      </div>
+
+      {/* ── New Project Request ── */}
+      <div className="mt-6">
+        <NewProjectRequest user={user} />
       </div>
     </PortalLayout>
   )

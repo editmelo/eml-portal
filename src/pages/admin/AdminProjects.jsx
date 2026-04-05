@@ -13,7 +13,8 @@ import { formatCurrency, formatDate } from '../../lib/utils'
 import { cn } from '../../lib/utils'
 import {
   Plus, Search, ChevronDown, ChevronUp, X, Edit2,
-  User, Calendar, DollarSign, Save, Users,
+  User, Calendar, DollarSign, Save, Users, Sparkles, Clock,
+  CheckCircle2, XCircle, Eye,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -444,6 +445,107 @@ function ProjectRow({ project, isDark, profiles, clients, designers }) {
 }
 
 
+// ── Project Requests Section ─────────────────────────────────────────────────
+function ProjectRequests({ isDark }) {
+  const projectRequests          = useProjectStore((s) => s.projectRequests)
+  const updateProjectRequestStatus = useProjectStore((s) => s.updateProjectRequestStatus)
+  const [expanded, setExpanded]  = useState(null)
+
+  if (projectRequests.length === 0) return null
+
+  const pending  = projectRequests.filter((r) => r.status === 'Pending')
+  const others   = projectRequests.filter((r) => r.status !== 'Pending')
+
+  const statusActions = [
+    { label: 'Reviewed', icon: <Eye size={12} />,          color: 'text-blue-400 hover:bg-blue-500/10' },
+    { label: 'Approved', icon: <CheckCircle2 size={12} />, color: 'text-emerald-400 hover:bg-emerald-500/10' },
+    { label: 'Declined', icon: <XCircle size={12} />,      color: 'text-red-400 hover:bg-red-500/10' },
+  ]
+
+  const renderRequest = (r) => (
+    <DarkCard key={r.id} className="overflow-hidden">
+      <button className="w-full text-left" onClick={() => setExpanded((v) => v === r.id ? null : r.id)}>
+        <div className="flex items-start gap-4 p-4 hover:bg-white/[0.02] transition-colors">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h4 className="text-sm font-semibold text-slate-100">{r.serviceType}</h4>
+              <span className={cn(
+                'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
+                r.status === 'Pending'  && 'bg-amber-500/10 text-amber-400',
+                r.status === 'Reviewed' && 'bg-blue-500/10 text-blue-400',
+                r.status === 'Approved' && 'bg-emerald-500/10 text-emerald-400',
+                r.status === 'Declined' && 'bg-red-500/10 text-red-400',
+              )}>
+                {r.status}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+              <span className="flex items-center gap-1"><User size={11} /> {r.clientName}</span>
+              <span className="flex items-center gap-1"><Clock size={11} /> {r.timeline}</span>
+              <span className="flex items-center gap-1"><DollarSign size={11} /> {r.budget}</span>
+            </div>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="text-[10px] text-slate-600">{new Date(r.createdAt).toLocaleDateString()}</p>
+            {expanded === r.id ? <ChevronUp size={14} className="text-slate-500 mt-1 ml-auto" /> : <ChevronDown size={14} className="text-slate-500 mt-1 ml-auto" />}
+          </div>
+        </div>
+      </button>
+
+      {expanded === r.id && (
+        <div className="border-t border-admin-border px-4 py-4 space-y-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Description</p>
+            <p className="text-sm text-slate-300 leading-relaxed">{r.description}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Goal</p>
+            <p className="text-sm text-slate-300 leading-relaxed">{r.goal}</p>
+          </div>
+          <div className="flex flex-wrap gap-3 text-xs text-slate-400">
+            <span>Timeline: <strong className="text-slate-200">{r.timeline}</strong></span>
+            <span>Budget: <strong className="text-slate-200">{r.budget}</strong></span>
+            {r.clientEmail && <span>Email: <strong className="text-slate-200">{r.clientEmail}</strong></span>}
+          </div>
+          {r.status === 'Pending' && (
+            <div className="flex gap-2 pt-2">
+              {statusActions.map((a) => (
+                <button
+                  key={a.label}
+                  onClick={() => { updateProjectRequestStatus(r.id, a.label); toast.success(`Request marked as ${a.label}`) }}
+                  className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-admin-border transition-colors', a.color)}
+                >
+                  {a.icon} {a.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </DarkCard>
+  )
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center gap-2 mb-3">
+        <Sparkles size={16} className="text-brand-400" />
+        <h2 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-800'}`}>
+          Client Project Requests
+        </h2>
+        {pending.length > 0 && (
+          <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-bold">
+            {pending.length} new
+          </span>
+        )}
+      </div>
+      <div className="space-y-2">
+        {pending.map(renderRequest)}
+        {others.map(renderRequest)}
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AdminProjects() {
   const projects    = useProjectStore((s) => s.projects)
@@ -512,6 +614,9 @@ export default function AdminProjects() {
           {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
+
+      {/* Client project requests */}
+      <ProjectRequests isDark={isDark} />
 
       <div className="space-y-3">
         {filtered.map((p) => <ProjectRow key={p.id} project={p} isDark={isDark} profiles={profiles} clients={clients} designers={designers} />)}

@@ -29,6 +29,7 @@ const useProjectStore = create(
   adminTodos:      [],   // [{ id, text, done, isPriority, createdAt }]             — admin personal to-do list
   projectBriefs:   {},   // { [projectId]: { ...generated brief data, createdAt } } — auto-generated from intake form
   folders:         [],   // [{ id, name, ownerId, ownerRole, ownerName, context, contextId, clientVisible, createdAt, files[] }]
+  projectRequests: [],   // [{ id, clientId, clientName, clientEmail, businessId, serviceType, description, timeline, budget, goal, status, createdAt }]
   financials:      { monthlyRevenue: 0, monthlyExpenses: 0, ytdRevenue: 0, ytdExpenses: 0, goalMonthly: 5000, goalYearly: 60000, monthlyBreakdown: [] },
   isLoading:       false,
 
@@ -502,6 +503,27 @@ const useProjectStore = create(
     })
   },
 
+  // ── Project Request Actions ────────────────────────────────────────────────
+
+  submitProjectRequest: (request) => {
+    const newRequest = {
+      id: `req_${Date.now()}`,
+      status: 'Pending',
+      createdAt: new Date().toISOString(),
+      ...request,
+    }
+    set((state) => ({ projectRequests: [newRequest, ...state.projectRequests] }))
+    return newRequest
+  },
+
+  updateProjectRequestStatus: (requestId, status) => {
+    set((state) => ({
+      projectRequests: state.projectRequests.map((r) =>
+        r.id === requestId ? { ...r, status } : r
+      ),
+    }))
+  },
+
   // ── Selectors (callable inside components via store) ───────────────────────
 
   /** Projects visible to a specific designer */
@@ -585,6 +607,7 @@ const useProjectStore = create(
         adminTodos:      state.adminTodos,
         projectBriefs:   state.projectBriefs,
         folders:         state.folders,
+        projectRequests: state.projectRequests,
         financials:      state.financials,
       }),
     }
