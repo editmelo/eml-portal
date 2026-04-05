@@ -10,14 +10,16 @@ import {
   User, BookOpen, Bell, Check, Camera, Monitor, Moon, Sun,
   LayoutDashboard, ClipboardList, FolderOpen, Image,
   Receipt, Calendar, ListChecks, ScrollText, Settings,
-  Building2, Plus, Trash2, Pencil, X,
+  Building2, Plus, Trash2, Pencil, X, AlertTriangle,
 } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 
 const TABS = [
   { id: 'profile',       label: 'Profile',       icon: User },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'display',       label: 'Display',       icon: Monitor },
   { id: 'guide',         label: 'App Guide',     icon: BookOpen },
+  { id: 'account',       label: 'Account',       icon: AlertTriangle },
 ]
 
 // ── App Guide content ─────────────────────────────────────────────────────────
@@ -507,6 +509,84 @@ function DisplayTab() {
   )
 }
 
+// ── Account / Deactivate Tab ──────────────────────────────────────────────────
+function AccountTab({ user }) {
+  const logout = useAuthStore((s) => s.logout)
+  const [confirming, setConfirming] = useState(false)
+  const [loading, setLoading]       = useState(false)
+
+  const handleDeactivate = async () => {
+    setLoading(true)
+    try {
+      const { data: session } = await supabase.auth.getSession()
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/archive-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.session?.access_token}`,
+          },
+          body: JSON.stringify({ userId: user?.id }),
+        }
+      )
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+      // Sign out after deactivation
+      await supabase.auth.signOut()
+      logout()
+    } catch (err) {
+      setLoading(false)
+      alert('Something went wrong: ' + err.message)
+    }
+  }
+
+  return (
+    <Card>
+      <div className="px-6 py-5 space-y-4">
+        <div>
+          <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100">Deactivate Account</h3>
+          <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+            Deactivating your account will log you out and prevent you from signing in.
+            Your project files, history, and data will be preserved — nothing is deleted.
+            If you ever want to come back, you'll need to sign up again or contact Edit Me Lo to restore your account.
+          </p>
+        </div>
+
+        {!confirming ? (
+          <button
+            onClick={() => setConfirming(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10"
+          >
+            <AlertTriangle size={14} />
+            Deactivate My Account
+          </button>
+        ) : (
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 space-y-3 dark:bg-red-500/10 dark:border-red-500/20">
+            <p className="text-sm font-semibold text-red-700 dark:text-red-400">Are you sure?</p>
+            <p className="text-xs text-red-600 dark:text-red-400/80">This will immediately log you out and deactivate your account. Your data is not deleted.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleDeactivate}
+                disabled={loading}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Deactivating…' : 'Yes, Deactivate'}
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors dark:border-slate-600 dark:text-slate-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function ClientSettings() {
   const user      = useAuthStore(selectUser)
@@ -575,6 +655,7 @@ export default function ClientSettings() {
           {activeTab === 'notifications' && <NotificationsTab />}
           {activeTab === 'display'       && <DisplayTab />}
           {activeTab === 'guide'         && <AppGuideTab />}
+          {activeTab === 'account'       && <AccountTab user={user} />}
         </div>
       </div>
     </PortalLayout>

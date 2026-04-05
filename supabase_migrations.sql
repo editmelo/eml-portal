@@ -336,3 +336,12 @@ CREATE POLICY "Admins can manage leads"
   WITH CHECK (
     EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role = 'ADMIN')
   );
+
+
+-- ============================================================================
+-- 10. ACCOUNT ARCHIVING SUPPORT
+-- ============================================================================
+
+-- Add archived flag to profiles (soft-delete — data is preserved)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS archived boolean DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS archived_at timestamptz;

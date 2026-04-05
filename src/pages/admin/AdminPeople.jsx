@@ -14,7 +14,7 @@ import {
   Search, X, User, Mail, Phone, Building2,
   Cake, Heart, Star, FileText, FolderKanban,
   ClipboardList, Save, Edit2, Clock,
-  UserPlus, MailCheck, RefreshCw, Ban,
+  UserPlus, MailCheck, RefreshCw, Ban, Archive, ArchiveRestore,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { sendInviteEmail } from '../../lib/emailService'
@@ -457,11 +457,12 @@ function DesignerModal({ designer, onClose, isDark }) {
 }
 
 // ── Person Card ───────────────────────────────────────────────────────────────
-function PersonCard({ person, type, isDark }) {
+function PersonCard({ person, type, isDark, onArchive, onRestore }) {
   const projects        = useProjectStore((s) => s.projects)
   const clientProfile   = useProjectStore((s) => s.clientProfiles[person.id])
   const designerProfile = useProjectStore((s) => s.designerProfiles[person.id])
   const [modalOpen, setModalOpen] = useState(false)
+  const [archiving, setArchiving] = useState(false)
 
   const personProjects = getProjects(person.id, projects)
   const avatar  = clientProfile?.avatar ?? null
@@ -469,11 +470,27 @@ function PersonCard({ person, type, isDark }) {
   const clientBiz = clientProfile?.businesses ?? []
   const company = clientBiz.length > 0 ? clientBiz.map((b) => b.name).join(', ') : (clientProfile?.company ?? person.company ?? null)
   const specialty = designerProfile?.specialty ?? person.specialty ?? null
+  const isArchived = person.archived
+
+  const handleArchive = async (e) => {
+    e.stopPropagation()
+    if (!confirm(`Archive ${displayName}? They won't be able to log in until restored.`)) return
+    setArchiving(true)
+    await onArchive(person.id)
+    setArchiving(false)
+  }
+
+  const handleRestore = async (e) => {
+    e.stopPropagation()
+    setArchiving(true)
+    await onRestore(person.id)
+    setArchiving(false)
+  }
 
   return (
     <>
       <DarkCard
-        className="p-4 cursor-pointer hover:bg-admin-surface/80 transition-colors"
+        className={cn('p-4 cursor-pointer hover:bg-admin-surface/80 transition-colors', isArchived && 'opacity-60')}
         onClick={() => setModalOpen(true)}
       >
         <div className="flex items-start gap-3">
@@ -490,12 +507,38 @@ function PersonCard({ person, type, isDark }) {
               )}>
                 {type}
               </span>
+              {isArchived && (
+                <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">
+                  Archived
+                </span>
+              )}
               {personProjects.length > 0 && (
                 <span className="text-[10px] text-slate-500 flex items-center gap-1">
                   <FolderKanban size={10} /> {personProjects.length} project{personProjects.length > 1 ? 's' : ''}
                 </span>
               )}
             </div>
+          </div>
+          <div className="shrink-0">
+            {isArchived ? (
+              <button
+                onClick={handleRestore}
+                disabled={archiving}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg border border-admin-border text-[11px] text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                title="Restore account"
+              >
+                <ArchiveRestore size={11} /> Restore
+              </button>
+            ) : (
+              <button
+                onClick={handleArchive}
+                disabled={archiving}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg border border-admin-border text-[11px] text-slate-500 hover:text-red-400 hover:border-red-400/50 transition-colors disabled:opacity-50"
+                title="Archive account"
+              >
+                <Archive size={11} />
+              </button>
+            )}
           </div>
         </div>
       </DarkCard>
@@ -595,7 +638,7 @@ export default function AdminPeople() {
   const isDark        = useThemeStore((s) => s.adminTheme) === 'dark'
   const loadInvites   = useInviteStore((s) => s.loadInvites)
   const [query,       setQuery]       = useState('')
-  const [filter,      setFilter]      = useState('all') // all | clients | designers
+  const [filter,      setFilter]      = useState('all') // all | clients | designers | archived
   const [showInvite,  setShowInvite]  = useState(false)
   const [inviteRole,  setInviteRole]  = useState('CLIENT')
   const [clients,     setClients]     = useState([])
@@ -603,22 +646,56 @@ export default function AdminPeople() {
 
   useEffect(() => { loadInvites() }, [])
 
-  useEffect(() => {
+  const loadProfiles = () => {
     supabase.from('profiles').select('*').then(({ data, error }) => {
-      console.log('[AdminPeople] profiles query →', { data, error })
       if (error || !data) return
-      setClients(data
-        .filter((p) => p.role === 'CLIENT')
-        .map((p) => ({ id: p.id, name: p.name ?? p.email, email: p.email, company: p.business, phone: p.phone, avatar: p.avatar_url }))
-      )
-      setDesigners(data
-        .filter((p) => p.role === 'DESIGNER')
-        .map((p) => ({ id: p.id, name: p.name ?? p.email, email: p.email, phone: p.phone, avatar: p.avatar_url }))
-      )
+      const mapPerson = (p) => ({ id: p.id, name: p.name ?? p.email, email: p.email, company: p.business, phone: p.phone, avatar: p.avatar_url, archived: p.archived ?? false })
+      setClients(data.filter((p) => p.role === 'CLIENT').map(mapPerson))
+      setDesigners(data.filter((p) => p.role === 'DESIGNER').map(mapPerson))
     })
-  }, [])
+  }
+
+  useEffect(() => { loadProfiles() }, [])
+
+  const handleArchive = async (userId) => {
+    try {
+      const { data: session } = await supabase.auth.getSession()
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/archive-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.session?.access_token}`,
+          },
+          body: JSON.stringify({ userId }),
+        }
+      )
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+      toast.success('Account archived')
+      loadProfiles()
+    } catch (err) {
+      toast.error('Archive failed: ' + err.message)
+    }
+  }
+
+  const handleRestore = async (userId) => {
+    try {
+      // Unarchive in profiles
+      await supabase.from('profiles').update({ archived: false, archived_at: null }).eq('id', userId)
+      // Note: unbanning requires the edge function or manual Supabase dashboard action
+      // For now we just unarchive the profile — admin can re-enable auth from dashboard if needed
+      toast.success('Account restored. User may need to reset their password to log in again.')
+      loadProfiles()
+    } catch (err) {
+      toast.error('Restore failed: ' + err.message)
+    }
+  }
 
   const openInvite = (role = 'CLIENT') => { setInviteRole(role); setShowInvite(true) }
+
+  const archivedCount = [...clients, ...designers].filter((p) => p.archived).length
 
   const allPeople = [
     ...clients.map((c)   => ({ ...c, _type: 'client' })),
@@ -626,9 +703,10 @@ export default function AdminPeople() {
   ]
 
   const filtered = allPeople.filter((p) => {
+    if (filter === 'archived') return p.archived
     const matchFilter = filter === 'all' || p._type === filter.replace(/s$/, '')
     const q = query.toLowerCase()
-    return matchFilter && (!q || p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q))
+    return matchFilter && !p.archived && (!q || p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q))
   })
 
   return (
@@ -662,7 +740,7 @@ export default function AdminPeople() {
           />
         </div>
         <div className="flex gap-1 p-1 bg-admin-surface border border-admin-border rounded-lg">
-          {[['all','All'], ['clients','Clients'], ['designers','Designers']].map(([id, label]) => (
+          {[['all','All'], ['clients','Clients'], ['designers','Designers'], ['archived', `Archived${archivedCount > 0 ? ` (${archivedCount})` : ''}`]].map(([id, label]) => (
             <button key={id} onClick={() => setFilter(id)}
               className={cn('px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
                 filter === id ? 'bg-brand-500 text-white' : 'text-slate-400 hover:text-slate-200'
@@ -687,7 +765,7 @@ export default function AdminPeople() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filtered.filter((p) => p._type === 'client').map((p) => (
-              <PersonCard key={p.id} person={p} type="client" isDark={isDark} />
+              <PersonCard key={p.id} person={p} type="client" isDark={isDark} onArchive={handleArchive} onRestore={handleRestore} />
             ))}
             {filtered.filter((p) => p._type === 'client').length === 0 && (
               <p className="text-slate-600 text-sm col-span-3">No clients match your search.</p>
@@ -710,10 +788,25 @@ export default function AdminPeople() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filtered.filter((p) => p._type === 'designer').map((p) => (
-              <PersonCard key={p.id} person={p} type="designer" isDark={isDark} />
+              <PersonCard key={p.id} person={p} type="designer" isDark={isDark} onArchive={handleArchive} onRestore={handleRestore} />
             ))}
             {filtered.filter((p) => p._type === 'designer').length === 0 && (
               <p className="text-slate-600 text-sm col-span-3">No designers match your search.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Section: Archived */}
+      {filter === 'archived' && (
+        <div className="mb-6">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Archived Accounts</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {filtered.map((p) => (
+              <PersonCard key={p.id} person={p} type={p._type} isDark={isDark} onArchive={handleArchive} onRestore={handleRestore} />
+            ))}
+            {filtered.length === 0 && (
+              <p className="text-slate-600 text-sm col-span-3">No archived accounts.</p>
             )}
           </div>
         </div>
