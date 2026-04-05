@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FolderKanban, Users, Wallet, BarChart3,
@@ -10,6 +10,7 @@ import {
 import useAuthStore, { selectUser, selectRole, selectViewRole } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
 import useThemeStore from '../../store/themeStore'
+import { supabase } from '../../lib/supabase'
 import { NAV_CONFIG, ROLES } from '../../lib/constants'
 import { cn } from '../../lib/utils'
 import Avatar from '../ui/Avatar'
@@ -102,6 +103,24 @@ export default function Sidebar({ open, onClose }) {
   const clientProfile      = useProjectStore((s) => s.clientProfiles[user?.id])
   const setActiveBusinessId = useProjectStore((s) => s.setActiveBusinessId)
   const [bizOpen, setBizOpen] = useState(false)
+
+  // Sync businesses from Supabase if local store is empty
+  const saveClientProfile = useProjectStore((s) => s.saveClientProfile)
+  useEffect(() => {
+    if (!user?.id) return
+    const localBiz = clientProfile?.businesses ?? []
+    // Always fetch from DB on mount to stay in sync
+    supabase.from('profiles').select('businesses').eq('id', user.id).single().then(({ data }) => {
+      const dbBiz = data?.businesses ?? []
+      if (dbBiz.length > 0 && dbBiz.length > localBiz.length) {
+        saveClientProfile(user.id, {
+          ...(clientProfile ?? {}),
+          businesses: dbBiz,
+          activeBusinessId: clientProfile?.activeBusinessId ?? dbBiz[0]?.id,
+        })
+      }
+    })
+  }, [user?.id])
 
   const navItems = NAV_CONFIG[viewRole] ?? []
   const businesses = clientProfile?.businesses ?? []

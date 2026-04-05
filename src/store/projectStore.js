@@ -449,8 +449,8 @@ const useProjectStore = create(
 
   // ── Client Business Actions ───────────────────────────────────────────────
 
-  addClientBusiness: (userId, name) => {
-    const biz = { id: `biz_${Date.now()}`, name, createdAt: new Date().toISOString() }
+  addClientBusiness: (userId, name, details = {}) => {
+    const biz = { id: `biz_${Date.now()}`, name, email: '', phone: '', website: '', description: '', ...details, createdAt: new Date().toISOString() }
     set((state) => {
       const profile = state.clientProfiles[userId] ?? {}
       const businesses = [...(profile.businesses ?? []), biz]
@@ -475,6 +475,21 @@ const useProjectStore = create(
         clientProfiles: {
           ...state.clientProfiles,
           [userId]: { ...profile, businesses, activeBusinessId },
+        },
+      }
+    })
+  },
+
+  updateClientBusiness: (userId, bizId, patch) => {
+    set((state) => {
+      const profile = state.clientProfiles[userId] ?? {}
+      const businesses = (profile.businesses ?? []).map((b) =>
+        b.id === bizId ? { ...b, ...patch } : b
+      )
+      return {
+        clientProfiles: {
+          ...state.clientProfiles,
+          [userId]: { ...profile, businesses },
         },
       }
     })

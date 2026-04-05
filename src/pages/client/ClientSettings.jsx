@@ -99,12 +99,12 @@ function Toggle({ enabled, onToggle }) {
 function ProfileTab({ user }) {
   const updateUser          = useAuthStore((s) => s.updateUser)
   const saveProfile         = useAuthStore((s) => s.saveProfile)
-  const saveClientProfile   = useProjectStore((s) => s.saveClientProfile)
-  const addClientBusiness   = useProjectStore((s) => s.addClientBusiness)
+  const saveClientProfile    = useProjectStore((s) => s.saveClientProfile)
+  const addClientBusiness    = useProjectStore((s) => s.addClientBusiness)
   const removeClientBusiness = useProjectStore((s) => s.removeClientBusiness)
-  const renameClientBusiness = useProjectStore((s) => s.renameClientBusiness)
-  const setActiveBusinessId = useProjectStore((s) => s.setActiveBusinessId)
-  const existingProfile     = useProjectStore((s) => s.clientProfiles[user?.id])
+  const updateClientBusiness = useProjectStore((s) => s.updateClientBusiness)
+  const setActiveBusinessId  = useProjectStore((s) => s.setActiveBusinessId)
+  const existingProfile      = useProjectStore((s) => s.clientProfiles[user?.id])
 
   const [form, setForm] = useState({
     name:     user?.name     ?? '',
@@ -114,10 +114,9 @@ function ProfileTab({ user }) {
   })
   const [avatar, setAvatar]         = useState(existingProfile?.avatar ?? null)
   const [saved, setSaved]           = useState(false)
-  const [newBizName, setNewBizName] = useState('')
   const [addingBiz, setAddingBiz]   = useState(false)
   const [editingBiz, setEditingBiz] = useState(null)   // bizId being edited
-  const [editName, setEditName]     = useState('')
+  const [bizForm, setBizForm]       = useState({ name: '', email: '', phone: '', website: '', description: '' })
   const fileRef                     = useRef(null)
 
   const businesses      = existingProfile?.businesses ?? []
@@ -145,10 +144,15 @@ function ProfileTab({ user }) {
   }
 
   const handleAddBusiness = () => {
-    if (!newBizName.trim()) return
-    const updated = addClientBusiness(user?.id, newBizName.trim())
+    if (!bizForm.name.trim()) return
+    const updated = addClientBusiness(user?.id, bizForm.name.trim(), {
+      email: bizForm.email.trim(),
+      phone: bizForm.phone.trim(),
+      website: bizForm.website.trim(),
+      description: bizForm.description.trim(),
+    })
     saveProfile({ businesses: updated })
-    setNewBizName('')
+    setBizForm({ name: '', email: '', phone: '', website: '', description: '' })
     setAddingBiz(false)
   }
 
@@ -158,13 +162,30 @@ function ProfileTab({ user }) {
     saveProfile({ businesses: profile?.businesses ?? [] })
   }
 
-  const handleRenameBusiness = (bizId) => {
-    if (!editName.trim()) return
-    renameClientBusiness(user?.id, bizId, editName.trim())
+  const handleSaveBusiness = (bizId) => {
+    if (!bizForm.name.trim()) return
+    updateClientBusiness(user?.id, bizId, {
+      name: bizForm.name.trim(),
+      email: bizForm.email.trim(),
+      phone: bizForm.phone.trim(),
+      website: bizForm.website.trim(),
+      description: bizForm.description.trim(),
+    })
     const profile = useProjectStore.getState().clientProfiles[user?.id]
     saveProfile({ businesses: profile?.businesses ?? [] })
     setEditingBiz(null)
-    setEditName('')
+    setBizForm({ name: '', email: '', phone: '', website: '', description: '' })
+  }
+
+  const startEditBusiness = (biz) => {
+    setEditingBiz(biz.id)
+    setBizForm({
+      name: biz.name ?? '',
+      email: biz.email ?? '',
+      phone: biz.phone ?? '',
+      website: biz.website ?? '',
+      description: biz.description ?? '',
+    })
   }
 
   const handleSetActive = (bizId) => {
@@ -277,7 +298,7 @@ function ProfileTab({ user }) {
 
         {/* Business list */}
         {businesses.length > 0 && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {businesses.map((biz) => {
               const isActive = activeBusinessId === biz.id
               const isEditing = editingBiz === biz.id
@@ -285,63 +306,92 @@ function ProfileTab({ user }) {
                 <div
                   key={biz.id}
                   className={cn(
-                    'flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl border transition-all',
+                    'rounded-xl border transition-all overflow-hidden',
                     isActive
                       ? 'border-brand-500/30 bg-brand-500/5'
                       : 'border-slate-200 hover:border-slate-300'
                   )}
                 >
                   {isEditing ? (
-                    <div className="flex items-center gap-2 flex-1">
-                      <input
-                        autoFocus
-                        className={cn(INPUT, 'py-1.5')}
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleRenameBusiness(biz.id)}
-                      />
-                      <button onClick={() => handleRenameBusiness(biz.id)} className="text-brand-500 hover:text-brand-600">
-                        <Check size={14} />
-                      </button>
-                      <button onClick={() => { setEditingBiz(null); setEditName('') }} className="text-slate-400 hover:text-slate-600">
-                        <X size={14} />
-                      </button>
+                    <div className="p-4 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="sm:col-span-2">
+                          <label className={LABEL}>Business Name *</label>
+                          <input autoFocus className={INPUT} value={bizForm.name} onChange={(e) => setBizForm((f) => ({ ...f, name: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className={LABEL}>Business Email</label>
+                          <input className={INPUT} type="email" placeholder="hello@company.com" value={bizForm.email} onChange={(e) => setBizForm((f) => ({ ...f, email: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className={LABEL}>Business Phone</label>
+                          <input className={INPUT} type="tel" placeholder="(555) 000-0000" value={bizForm.phone} onChange={(e) => setBizForm((f) => ({ ...f, phone: e.target.value }))} />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className={LABEL}>Website</label>
+                          <input className={INPUT} type="url" placeholder="https://www.example.com" value={bizForm.website} onChange={(e) => setBizForm((f) => ({ ...f, website: e.target.value }))} />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className={LABEL}>Business Description</label>
+                          <textarea className={cn(INPUT, 'resize-none')} rows={2} placeholder="What does this business do?" value={bizForm.description} onChange={(e) => setBizForm((f) => ({ ...f, description: e.target.value }))} />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleSaveBusiness(biz.id)} className="px-3 py-1.5 rounded-lg bg-brand-500 text-white text-xs font-semibold hover:bg-brand-600 transition-colors">
+                          Save
+                        </button>
+                        <button onClick={() => { setEditingBiz(null); setBizForm({ name: '', email: '', phone: '', website: '', description: '' }) }} className="px-3 py-1.5 rounded-lg text-slate-400 text-xs hover:text-slate-600 transition-colors">
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <>
-                      <button
-                        onClick={() => handleSetActive(biz.id)}
-                        className="flex items-center gap-2.5 flex-1 text-left"
-                      >
-                        <div className={cn(
-                          'h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0',
-                          isActive ? 'border-brand-500 bg-brand-500' : 'border-slate-300'
-                        )}>
-                          {isActive && <Check size={9} className="text-white" />}
-                        </div>
-                        <span className={cn('text-sm font-medium', isActive ? 'text-brand-600' : 'text-slate-700')}>
-                          {biz.name}
-                        </span>
-                      </button>
-                      <div className="flex items-center gap-1">
+                    <div className="px-3.5 py-3">
+                      <div className="flex items-center justify-between gap-3">
                         <button
-                          onClick={() => { setEditingBiz(biz.id); setEditName(biz.name) }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                          title="Rename"
+                          onClick={() => handleSetActive(biz.id)}
+                          className="flex items-center gap-2.5 flex-1 text-left"
                         >
-                          <Pencil size={12} />
+                          <div className={cn(
+                            'h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0',
+                            isActive ? 'border-brand-500 bg-brand-500' : 'border-slate-300'
+                          )}>
+                            {isActive && <Check size={9} className="text-white" />}
+                          </div>
+                          <div className="min-w-0">
+                            <span className={cn('text-sm font-medium block', isActive ? 'text-brand-600' : 'text-slate-700')}>
+                              {biz.name}
+                            </span>
+                            {(biz.email || biz.website) && (
+                              <span className="text-[10px] text-slate-400 block truncate">
+                                {[biz.email, biz.website].filter(Boolean).join(' · ')}
+                              </span>
+                            )}
+                          </div>
                         </button>
-                        {businesses.length > 1 && (
+                        <div className="flex items-center gap-1">
                           <button
-                            onClick={() => handleRemoveBusiness(biz.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                            title="Remove"
+                            onClick={() => startEditBusiness(biz)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                            title="Edit"
                           >
-                            <Trash2 size={12} />
+                            <Pencil size={12} />
                           </button>
-                        )}
+                          {businesses.length > 1 && (
+                            <button
+                              onClick={() => handleRemoveBusiness(biz.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              title="Remove"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </>
+                      {biz.description && (
+                        <p className="text-[11px] text-slate-400 mt-1 ml-6.5 pl-[26px]">{biz.description}</p>
+                      )}
+                    </div>
                   )}
                 </div>
               )
@@ -349,29 +399,39 @@ function ProfileTab({ user }) {
           </div>
         )}
 
-        {/* Add business inline form */}
+        {/* Add business form */}
         {addingBiz && (
-          <div className="flex items-center gap-2">
-            <input
-              autoFocus
-              className={INPUT}
-              placeholder="Business name"
-              value={newBizName}
-              onChange={(e) => setNewBizName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddBusiness()}
-            />
-            <button
-              onClick={handleAddBusiness}
-              className="px-3 py-2 rounded-lg bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors shrink-0"
-            >
-              Add
-            </button>
-            <button
-              onClick={() => { setAddingBiz(false); setNewBizName('') }}
-              className="p-2 rounded-lg text-slate-400 hover:text-slate-600 transition-colors shrink-0"
-            >
-              <X size={16} />
-            </button>
+          <div className="p-4 rounded-xl border border-brand-500/20 bg-brand-500/5 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <label className={LABEL}>Business Name *</label>
+                <input autoFocus className={INPUT} placeholder="Your business name" value={bizForm.name} onChange={(e) => setBizForm((f) => ({ ...f, name: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && handleAddBusiness()} />
+              </div>
+              <div>
+                <label className={LABEL}>Business Email</label>
+                <input className={INPUT} type="email" placeholder="hello@company.com" value={bizForm.email} onChange={(e) => setBizForm((f) => ({ ...f, email: e.target.value }))} />
+              </div>
+              <div>
+                <label className={LABEL}>Business Phone</label>
+                <input className={INPUT} type="tel" placeholder="(555) 000-0000" value={bizForm.phone} onChange={(e) => setBizForm((f) => ({ ...f, phone: e.target.value }))} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className={LABEL}>Website</label>
+                <input className={INPUT} type="url" placeholder="https://www.example.com" value={bizForm.website} onChange={(e) => setBizForm((f) => ({ ...f, website: e.target.value }))} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className={LABEL}>Business Description</label>
+                <textarea className={cn(INPUT, 'resize-none')} rows={2} placeholder="What does this business do?" value={bizForm.description} onChange={(e) => setBizForm((f) => ({ ...f, description: e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={handleAddBusiness} className="px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors">
+                Add Business
+              </button>
+              <button onClick={() => { setAddingBiz(false); setBizForm({ name: '', email: '', phone: '', website: '', description: '' }) }} className="px-4 py-2 rounded-lg text-slate-400 text-sm hover:text-slate-600 transition-colors">
+                Cancel
+              </button>
+            </div>
           </div>
         )}
       </Card>
