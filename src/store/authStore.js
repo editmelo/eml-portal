@@ -253,9 +253,12 @@ const useAuthStore = create((set, get) => ({
       avatar_url: patch.avatar     ?? current.avatar,
     }
 
-    // Check we have an active session
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    // Get session token for the edge function
+    const { data: sessionData } = await supabase.auth.getSession()
+    const accessToken = sessionData?.session?.access_token
+    console.log('[saveProfile] session exists:', !!sessionData?.session, 'token exists:', !!accessToken)
+
+    if (!accessToken) {
       return { success: false, error: 'Session expired — please log out and log back in' }
     }
 
@@ -275,12 +278,13 @@ const useAuthStore = create((set, get) => ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify(updatePayload),
       }
     )
     const result = await res.json()
+    console.log('[saveProfile] edge function response:', res.status, result)
 
     if (!res.ok || result.error) {
       console.error('[authStore] profile save failed:', result.error)
