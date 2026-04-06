@@ -161,7 +161,7 @@ function ClientProfileModal({ clientId, project, onClose, profiles = [] }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] mx-2 sm:mx-0 flex flex-col overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -479,7 +479,7 @@ function InternalNotesPanel({ projectId }) {
       >
         <Lock size={13} className="text-amber-600" />
         <span className="text-xs font-semibold text-amber-800 flex-1">Internal Notes</span>
-        <span className="text-[10px] text-amber-600 mr-1">Admin & Designer only</span>
+        <span className="text-[10px] text-amber-600 mr-1 hidden sm:inline">Admin & Designer only</span>
         {internalNotes.length > 0 && (
           <span className="text-[10px] font-bold bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full">
             {internalNotes.length}
@@ -582,7 +582,7 @@ function ClientNotesPanel({ projectId }) {
       >
         <MessageCircle size={13} className="text-brand-500" />
         <span className="text-xs font-semibold text-brand-700 flex-1">Client Notes</span>
-        <span className="text-[10px] text-brand-500 mr-1">Visible to client</span>
+        <span className="text-[10px] text-brand-500 mr-1 hidden sm:inline">Visible to client</span>
         {projectNotes.length > 0 && (
           <span className="text-[10px] font-bold bg-brand-100 text-brand-700 px-1.5 py-0.5 rounded-full">
             {projectNotes.length}
@@ -725,27 +725,27 @@ function ProjectCard({ project, profiles = [] }) {
           <CardBody className="space-y-4 pt-2">
 
             {/* ── Project Details ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
-                <DollarSign size={14} className="text-emerald-500 mx-auto mb-1" />
-                <p className="text-sm font-bold text-slate-800">{formatCurrency(project.designerPayout)}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Your Payout</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-2 sm:p-3 text-center">
+                <DollarSign size={13} className="text-emerald-500 mx-auto mb-0.5 sm:mb-1" />
+                <p className="text-xs sm:text-sm font-bold text-slate-800">{formatCurrency(project.designerPayout)}</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">Your Payout</p>
               </div>
-              <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
-                <User size={14} className="text-brand-500 mx-auto mb-1" />
-                <p className="text-sm font-semibold text-slate-800 truncate">{clientName}</p>
-                {businessName && <p className="text-[10px] text-slate-400 mt-0.5 truncate">{businessName}</p>}
-                {!businessName && <p className="text-[10px] text-slate-400 mt-0.5">Client</p>}
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-2 sm:p-3 text-center">
+                <User size={13} className="text-brand-500 mx-auto mb-0.5 sm:mb-1" />
+                <p className="text-xs sm:text-sm font-semibold text-slate-800 truncate">{clientName}</p>
+                {businessName && <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 truncate">{businessName}</p>}
+                {!businessName && <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">Client</p>}
               </div>
-              <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
-                <Calendar size={14} className="text-blue-500 mx-auto mb-1" />
-                <p className="text-sm font-semibold text-slate-800">{formatDate(project.startDate) || '—'}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Start Date</p>
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-2 sm:p-3 text-center">
+                <Calendar size={13} className="text-blue-500 mx-auto mb-0.5 sm:mb-1" />
+                <p className="text-xs sm:text-sm font-semibold text-slate-800">{formatDate(project.startDate) || '—'}</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">Start</p>
               </div>
-              <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
-                <Calendar size={14} className="text-amber-500 mx-auto mb-1" />
-                <p className="text-sm font-semibold text-slate-800">{formatDate(project.dueDate) || '—'}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Due Date</p>
+              <div className="rounded-xl bg-slate-50 border border-slate-100 p-2 sm:p-3 text-center">
+                <Calendar size={13} className="text-amber-500 mx-auto mb-0.5 sm:mb-1" />
+                <p className="text-xs sm:text-sm font-semibold text-slate-800">{formatDate(project.dueDate) || '—'}</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">Due</p>
               </div>
             </div>
 

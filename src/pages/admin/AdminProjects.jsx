@@ -81,7 +81,7 @@ function NewProjectModal({ onClose, isDark, clients, designers }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-admin-surface border border-admin-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-admin-surface border border-admin-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] mx-2 sm:mx-0 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-admin-border">
           <h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-800'}`}>New Project</h2>
           <button onClick={onClose} className="h-7 w-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors">
@@ -233,7 +233,7 @@ function EditProjectModal({ project, onClose, isDark, clients, designers }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-admin-surface border border-admin-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-admin-surface border border-admin-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] mx-2 sm:mx-0 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-admin-border">
           <h2 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-800'}`}>Edit Project</h2>
           <button onClick={onClose} className="h-7 w-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors">
@@ -362,7 +362,7 @@ function AdminInternalNotes({ projectId }) {
       >
         <Lock size={13} className="text-amber-400" />
         <span className="text-xs font-semibold text-amber-300 flex-1">Internal Notes</span>
-        <span className="text-[10px] text-amber-500 mr-1">Admin & Designer only</span>
+        <span className="text-[10px] text-amber-500 mr-1 hidden sm:inline">Admin & Designer only</span>
         {internalNotes.length > 0 && (
           <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full">
             {internalNotes.length}
@@ -462,7 +462,7 @@ function AdminClientNotes({ projectId }) {
       >
         <MessageCircle size={13} className="text-brand-400" />
         <span className="text-xs font-semibold text-brand-300 flex-1">Client Notes</span>
-        <span className="text-[10px] text-brand-500 mr-1">Visible to client</span>
+        <span className="text-[10px] text-brand-500 mr-1 hidden sm:inline">Visible to client</span>
         {projectNotes.length > 0 && (
           <span className="text-[10px] font-bold bg-brand-500/20 text-brand-300 px-1.5 py-0.5 rounded-full">
             {projectNotes.length}
@@ -551,10 +551,10 @@ function ProjectRow({ project, isDark, profiles, clients, designers }) {
     <>
       <DarkCard className="overflow-hidden">
         <button className="w-full text-left" onClick={() => setExpanded((o) => !o)}>
-          <div className="flex items-start gap-4 p-5 hover:bg-white/[0.02] transition-colors">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4 p-4 sm:p-5 hover:bg-white/[0.02] transition-colors">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 mb-1 flex-wrap">
-                <h3 className="text-slate-100 font-semibold">{project.name}</h3>
+              <div className="flex items-center gap-2 sm:gap-3 mb-1 flex-wrap">
+                <h3 className="text-slate-100 font-semibold text-sm sm:text-base">{project.name}</h3>
                 <StatusBadge status={project.status} />
                 {project.leadId && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-medium">
@@ -562,9 +562,9 @@ function ProjectRow({ project, isDark, profiles, clients, designers }) {
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+              <div className="flex flex-wrap gap-2 sm:gap-3 text-xs text-slate-500">
                 <span className="flex items-center gap-1"><User size={11} /> {clientName}</span>
-                <span className="flex items-center gap-1"><Users size={11} /> Designer: {designerNames}</span>
+                <span className="flex items-center gap-1"><Users size={11} /> {designerNames}</span>
                 <span className="flex items-center gap-1"><Calendar size={11} /> Due {formatDate(project.dueDate)}</span>
               </div>
               <div className="mt-3 max-w-xs">
@@ -572,10 +572,12 @@ function ProjectRow({ project, isDark, profiles, clients, designers }) {
                 <p className="text-xs text-slate-600 mt-1">{project.progress}% complete</p>
               </div>
             </div>
-            <div className="text-right shrink-0">
-              <p className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{formatCurrency(project.projectValue)}</p>
-              <p className="text-xs text-slate-500 mt-0.5">Payout: {formatCurrency(project.designerPayout)}</p>
-              <div className="flex items-center gap-2 mt-2 justify-end">
+            <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 shrink-0">
+              <div className="sm:text-right">
+                <p className={`text-lg sm:text-xl font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{formatCurrency(project.projectValue)}</p>
+                <p className="text-xs text-slate-500 mt-0.5">Payout: {formatCurrency(project.designerPayout)}</p>
+              </div>
+              <div className="flex items-center gap-2">
                 <button
                   onClick={(e) => { e.stopPropagation(); setEditOpen(true) }}
                   className="flex items-center gap-1 px-2 py-1 rounded-lg border border-admin-border text-xs text-slate-400 hover:text-brand-400 hover:border-brand-400/50 transition-colors"
@@ -589,34 +591,34 @@ function ProjectRow({ project, isDark, profiles, clients, designers }) {
         </button>
 
         {expanded && (
-          <div className="border-t border-admin-border px-5 py-4 space-y-4">
+          <div className="border-t border-admin-border px-4 sm:px-5 py-4 space-y-4">
 
             {/* ── Project Details Strip ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="rounded-xl bg-white/5 border border-admin-border p-3 text-center">
-                <DollarSign size={14} className="text-slate-400 mx-auto mb-1" />
-                <p className="text-sm font-bold text-slate-100">{formatCurrency(project.projectValue)}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Project Value</p>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
+              <div className="rounded-xl bg-white/5 border border-admin-border p-2 sm:p-3 text-center">
+                <DollarSign size={13} className="text-slate-400 mx-auto mb-0.5 sm:mb-1" />
+                <p className="text-xs sm:text-sm font-bold text-slate-100">{formatCurrency(project.projectValue)}</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-500 mt-0.5">Project Value</p>
               </div>
-              <div className="rounded-xl bg-white/5 border border-admin-border p-3 text-center">
-                <Users size={14} className="text-slate-400 mx-auto mb-1" />
-                <p className="text-sm font-bold text-slate-100">{formatCurrency(project.designerPayout)}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Designer Payout</p>
+              <div className="rounded-xl bg-white/5 border border-admin-border p-2 sm:p-3 text-center">
+                <Users size={13} className="text-slate-400 mx-auto mb-0.5 sm:mb-1" />
+                <p className="text-xs sm:text-sm font-bold text-slate-100">{formatCurrency(project.designerPayout)}</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-500 mt-0.5">Payout</p>
               </div>
-              <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
-                <TrendingUp size={14} className="text-emerald-400 mx-auto mb-1" />
-                <p className="text-sm font-bold text-emerald-300">{formatCurrency(companyProfit)}</p>
-                <p className="text-[10px] text-emerald-500 mt-0.5">Company Profit</p>
+              <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-2 sm:p-3 text-center">
+                <TrendingUp size={13} className="text-emerald-400 mx-auto mb-0.5 sm:mb-1" />
+                <p className="text-xs sm:text-sm font-bold text-emerald-300">{formatCurrency(companyProfit)}</p>
+                <p className="text-[9px] sm:text-[10px] text-emerald-500 mt-0.5">Profit</p>
               </div>
-              <div className="rounded-xl bg-white/5 border border-admin-border p-3 text-center">
-                <Calendar size={14} className="text-blue-400 mx-auto mb-1" />
-                <p className="text-sm font-semibold text-slate-100">{formatDate(project.startDate) || '—'}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Start Date</p>
+              <div className="rounded-xl bg-white/5 border border-admin-border p-2 sm:p-3 text-center">
+                <Calendar size={13} className="text-blue-400 mx-auto mb-0.5 sm:mb-1" />
+                <p className="text-xs sm:text-sm font-semibold text-slate-100">{formatDate(project.startDate) || '—'}</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-500 mt-0.5">Start</p>
               </div>
-              <div className="rounded-xl bg-white/5 border border-admin-border p-3 text-center">
-                <Calendar size={14} className="text-amber-400 mx-auto mb-1" />
-                <p className="text-sm font-semibold text-slate-100">{formatDate(project.dueDate) || '—'}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Due Date</p>
+              <div className="rounded-xl bg-white/5 border border-admin-border p-2 sm:p-3 text-center">
+                <Calendar size={13} className="text-amber-400 mx-auto mb-0.5 sm:mb-1" />
+                <p className="text-xs sm:text-sm font-semibold text-slate-100">{formatDate(project.dueDate) || '—'}</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-500 mt-0.5">Due</p>
               </div>
             </div>
 
