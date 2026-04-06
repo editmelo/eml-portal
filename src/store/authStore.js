@@ -59,12 +59,14 @@ const useAuthStore = create((set, get) => ({
         if (profile) {
           const merged = {
             ...shaped,
-            name:     profile.name     || shaped.name,
-            phone:    profile.phone    || shaped.phone,
-            nickname: profile.nickname || shaped.nickname,
-            avatar:   profile.avatar_url || shaped.avatar,
-            business: profile.business || shaped.business,
-            businesses: profile.businesses?.length ? profile.businesses : shaped.businesses,
+            name:          profile.name          || shaped.name,
+            phone:         profile.phone         || shaped.phone,
+            nickname:      profile.nickname      || shaped.nickname,
+            avatar:        profile.avatar_url    || shaped.avatar,
+            business:      profile.business      || shaped.business,
+            businesses:    profile.businesses?.length ? profile.businesses : shaped.businesses,
+            specialty:     profile.specialty     || '',
+            portfolio_url: profile.portfolio_url || '',
           }
           set({ user: merged })
 
@@ -245,18 +247,18 @@ const useAuthStore = create((set, get) => ({
     if (!current) return { success: false }
 
     const payload = {
-      name:       patch.name       ?? current.name,
-      business:   patch.business   ?? current.business,
-      businesses: patch.businesses ?? current.businesses ?? [],
-      phone:      patch.phone      ?? current.phone,
-      nickname:   patch.nickname   ?? current.nickname,
-      avatar_url: patch.avatar     ?? current.avatar,
+      name:          patch.name          ?? current.name,
+      business:      patch.business      ?? current.business,
+      businesses:    patch.businesses    ?? current.businesses ?? [],
+      phone:         patch.phone         ?? current.phone,
+      nickname:      patch.nickname      ?? current.nickname,
+      avatar_url:    patch.avatar        ?? current.avatar,
+      specialty:     patch.specialty     ?? current.specialty ?? '',
+      portfolio_url: patch.portfolio_url ?? current.portfolio_url ?? '',
     }
 
-    // Get session token for the edge function
     const { data: sessionData } = await supabase.auth.getSession()
     const accessToken = sessionData?.session?.access_token
-    console.log('[saveProfile] session exists:', !!sessionData?.session, 'token exists:', !!accessToken)
 
     if (!accessToken) {
       return { success: false, error: 'Session expired — please log out and log back in' }
@@ -264,12 +266,14 @@ const useAuthStore = create((set, get) => ({
 
     // Use edge function to bypass RLS (service role)
     const updatePayload = {
-      name:       payload.name,
-      business:   payload.business,
-      businesses: payload.businesses,
-      phone:      payload.phone,
-      nickname:   payload.nickname,
-      avatar_url: payload.avatar_url,
+      name:          payload.name,
+      business:      payload.business,
+      businesses:    payload.businesses,
+      phone:         payload.phone,
+      nickname:      payload.nickname,
+      avatar_url:    payload.avatar_url,
+      specialty:     payload.specialty,
+      portfolio_url: payload.portfolio_url,
     }
 
     const res = await fetch(
@@ -288,8 +292,11 @@ const useAuthStore = create((set, get) => ({
       return { success: false, error: result.error || 'Save failed' }
     }
 
+    // Refresh session so any metadata cleanup on the server takes effect (shrinks JWT)
+    await supabase.auth.refreshSession()
+
     // Update local user state immediately
-    set({ user: { ...current, ...patch, name: payload.name, phone: payload.phone, nickname: payload.nickname, avatar: payload.avatar_url } })
+    set({ user: { ...current, ...patch, name: payload.name, phone: payload.phone, nickname: payload.nickname, avatar: payload.avatar_url, specialty: payload.specialty, portfolio_url: payload.portfolio_url } })
     return { success: true }
   },
 

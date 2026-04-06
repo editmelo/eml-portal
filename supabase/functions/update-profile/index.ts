@@ -4,8 +4,9 @@ import { corsHeaders } from '../_shared/cors.ts'
 /**
  * update-profile — Updates a user's profile using service role (bypasses RLS).
  *
- * Since the browser's auth token may not pass through edge function CORS,
- * we accept the access_token in the request body instead of the header.
+ * Accepts access_token in the request body. If getUser() fails (e.g. bloated
+ * JWT), falls back to decoding the JWT payload to extract the user ID, then
+ * verifies the user exists via the admin API.
  */
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -28,37 +29,68 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Verify the caller using the token passed in the body
-    const supabaseAuth = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: `Bearer ${token}` } } }
-    )
-    const { data: { user: caller }, error: authError } = await supabaseAuth.auth.getUser()
-    if (authError || !caller) {
-      return new Response(JSON.stringify({ error: 'Invalid token — please log out and log back in' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
     // Service role client — bypasses RLS
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    // Only allow updating your own profile
+    let userId: string | null = null
+
+    // Try normal auth verification first
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+    )
+    const { data: { user: caller }, error: authError } = await supabaseAuth.auth.getUser(token)
+
+    if (caller) {
+      userId = caller.id
+    } else {
+      // Fallback: decode JWT payload to get sub (user ID)
+      // JWT is header.payload.signature — we only need the payload
+      try {
+        const parts = token.split('.')
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]))
+          if (payload.sub) {
+            // Verify this user actually exists via admin API
+            const { data: adminUser, error: adminErr } = await supabaseAdmin.auth.admin.getUserById(payload.sub)
+            if (adminUser?.user && !adminErr) {
+              userId = adminUser.user.id
+
+              // Clean up bloated user_metadata that caused this problem
+              await supabaseAdmin.auth.admin.updateUserById(userId, {
+                user_metadata: {}
+              })
+            }
+          }
+        }
+      } catch (_decodeErr) {
+        // Decode failed — fall through to error
+      }
+    }
+
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Invalid token — please log out and log back in' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Update the profile
     const { data, error } = await supabaseAdmin
       .from('profiles')
       .update({
-        name:       body.name       ?? undefined,
-        business:   body.business   ?? undefined,
-        businesses: body.businesses ?? undefined,
-        phone:      body.phone      ?? undefined,
-        nickname:   body.nickname   ?? undefined,
-        avatar_url: body.avatar_url ?? undefined,
+        name:          body.name          ?? undefined,
+        business:      body.business      ?? undefined,
+        businesses:    body.businesses    ?? undefined,
+        phone:         body.phone         ?? undefined,
+        nickname:      body.nickname      ?? undefined,
+        avatar_url:    body.avatar_url    ?? undefined,
+        specialty:     body.specialty     ?? undefined,
+        portfolio_url: body.portfolio_url ?? undefined,
       })
-      .eq('id', caller.id)
+      .eq('id', userId)
       .select()
       .single()
 

@@ -98,12 +98,12 @@ function ProfileTab({ user }) {
   const existingProfile      = useProjectStore((s) => s.designerProfiles[user?.id])
 
   const [form, setForm] = useState({
-    name:       user?.name       ?? '',
-    email:      user?.email      ?? '',
-    phone:      user?.phone      ?? '',
-    specialty:  user?.specialty  ?? '',
-    portfolio:  user?.portfolio  ?? '',
-    nickname:   user?.nickname   ?? '',
+    name:          user?.name          ?? '',
+    email:         user?.email         ?? '',
+    phone:         user?.phone         ?? '',
+    specialty:     user?.specialty     ?? '',
+    portfolio_url: user?.portfolio_url ?? '',
+    nickname:      user?.nickname      ?? '',
     street:     existingProfile?.street   ?? '',
     city:       existingProfile?.city     ?? '',
     state:      existingProfile?.state    ?? '',
@@ -118,12 +118,12 @@ function ProfileTab({ user }) {
 
   useEffect(() => {
     setForm({
-      name:      user?.name      ?? '',
-      email:     user?.email     ?? '',
-      phone:     user?.phone     ?? '',
-      specialty: user?.specialty ?? '',
-      portfolio: user?.portfolio ?? '',
-      nickname:  user?.nickname  ?? '',
+      name:          user?.name          ?? '',
+      email:         user?.email         ?? '',
+      phone:         user?.phone         ?? '',
+      specialty:     user?.specialty     ?? '',
+      portfolio_url: user?.portfolio_url ?? '',
+      nickname:      user?.nickname      ?? '',
       street:    existingProfile?.street   ?? '',
       city:      existingProfile?.city     ?? '',
       state:     existingProfile?.state    ?? '',
@@ -146,14 +146,14 @@ function ProfileTab({ user }) {
 
   const addressComplete = form.street.trim() && form.city.trim() && form.state.trim() && form.zip.trim()
 
-  const handleSave = () => {
+  const handleSave = async () => {
     updateUser({ ...form })
     saveDesignerProfile(user?.id, {
       ...existingProfile, avatar,
-      specialty: form.specialty, phone: form.phone, portfolio: form.portfolio,
+      specialty: form.specialty, phone: form.phone, portfolio_url: form.portfolio_url,
       street: form.street.trim(), city: form.city.trim(), state: form.state.trim(), zip: form.zip.trim(),
     })
-    saveProfile({ name: form.name, phone: form.phone, nickname: form.nickname, avatar })
+    await saveProfile({ name: form.name, phone: form.phone, nickname: form.nickname, avatar, specialty: form.specialty, portfolio_url: form.portfolio_url })
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
@@ -226,7 +226,7 @@ function ProfileTab({ user }) {
           </div>
           <div className="sm:col-span-2">
             <label className={LABEL}>Portfolio URL</label>
-            <input className={INPUT} type="url" placeholder="https://yourportfolio.com" value={form.portfolio} onChange={(e) => setForm((f) => ({ ...f, portfolio: e.target.value }))} />
+            <input className={INPUT} type="url" placeholder="https://yourportfolio.com" value={form.portfolio_url} onChange={(e) => setForm((f) => ({ ...f, portfolio_url: e.target.value }))} />
           </div>
         </div>
 
