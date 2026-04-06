@@ -23,7 +23,8 @@ const useProjectStore = create(
   intakeForms:    {},   // { [projectId]: formData }
   todos:          {},   // { [projectId]: [{ id, text, done, createdAt }] }        — client todos
   designerTodos:  {},   // { [designerId]: [{ id, text, done, isPriority, projectId?, createdAt }] }
-  projectNotes:    {},   // { [projectId]: [{ id, authorId, authorRole, authorName, text, createdAt }] }
+  projectNotes:    {},   // { [projectId]: [{ id, authorId, authorRole, authorName, text, createdAt }] }  — visible to all (client, designer, admin)
+  internalNotes:   {},   // { [projectId]: [{ id, authorId, authorRole, authorName, text, createdAt }] }  — admin + designer only, hidden from client
   clientProfiles:  {},   // { [userId]: { avatar, company, phone, ... } }           — cross-role visible profile
   designerProfiles:{},   // { [userId]: { birthday, favFood, funFact, specialty, ... } }
   adminTodos:      [],   // [{ id, text, done, isPriority, createdAt }]             — admin personal to-do list
@@ -479,6 +480,20 @@ const useProjectStore = create(
 
   getProjectNotes: (projectId) => get().projectNotes[projectId] ?? [],
 
+  // ── Internal Notes Actions (admin + designer only) ────────────────────────
+
+  addInternalNote: (projectId, note) => {
+    // note: { id, authorId, authorRole, authorName, text, createdAt }
+    set((state) => ({
+      internalNotes: {
+        ...state.internalNotes,
+        [projectId]: [...(state.internalNotes[projectId] ?? []), note],
+      },
+    }))
+  },
+
+  getInternalNotes: (projectId) => get().internalNotes[projectId] ?? [],
+
   // ── Client Profile Actions ─────────────────────────────────────────────────
 
   saveClientProfile: (userId, profileData) => {
@@ -653,7 +668,7 @@ const useProjectStore = create(
         if (fromVersion < 3) {
           return {
             projects: [], leads: [], invoices: MOCK_INVOICES, payroll: [],
-            intakeForms: {}, todos: {}, designerTodos: {}, projectNotes: {},
+            intakeForms: {}, todos: {}, designerTodos: {}, projectNotes: {}, internalNotes: {},
             clientProfiles: {}, designerProfiles: {}, adminTodos: [],
             projectBriefs: {}, folders: [],
             financials: { monthlyRevenue: 0, monthlyExpenses: 0, ytdRevenue: 0, ytdExpenses: 0, goalMonthly: 5000, goalYearly: 60000, monthlyBreakdown: [] },
@@ -695,6 +710,7 @@ const useProjectStore = create(
         todos:           state.todos,
         designerTodos:   state.designerTodos,
         projectNotes:    state.projectNotes,
+        internalNotes:   state.internalNotes,
         clientProfiles:  state.clientProfiles,
         designerProfiles:state.designerProfiles,
         adminTodos:      state.adminTodos,
