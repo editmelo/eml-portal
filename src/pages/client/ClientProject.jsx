@@ -5,6 +5,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '../../components/ui/Card'
 import { StatusBadge, Badge } from '../../components/ui/Badge'
 import ProgressBar from '../../components/ui/ProgressBar'
 import FolderPanel from '../../components/ui/FolderPanel'
+import RichBrief from '../../components/ui/RichBrief'
 import useAuthStore, { selectUser } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
 import { formatDate } from '../../lib/utils'
@@ -511,7 +512,7 @@ export default function ClientProject() {
           <Card>
             <CardHeader><CardTitle>Project Brief</CardTitle></CardHeader>
             <CardBody>
-              <p className="text-sm text-slate-600 leading-relaxed">{project.brief}</p>
+              <RichBrief text={project.brief} className="text-sm text-slate-600" />
               <div className="flex flex-wrap gap-2 mt-4">
                 {project.tags?.map((t) => <Badge key={t} variant="default">{t}</Badge>)}
               </div>

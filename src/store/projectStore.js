@@ -55,16 +55,26 @@ const useProjectStore = create(
   },
 
   /**
-   * Designer uploads a draft → auto-transitions project to 'Review'
-   * so the client immediately sees the pending feedback request.
+   * Designer uploads a draft → auto-transitions project status based on
+   * how many drafts already exist:
+   *   0 existing → Draft 1
+   *   1 existing → Draft 2
+   *   2 existing → Draft 3
+   *   3+ existing → Final Revisions
    */
   addDraft: (projectId, draft) => {
     set((state) => ({
       projects: state.projects.map((p) => {
         if (p.id !== projectId) return p
+        const existingCount = (p.drafts ?? []).length
+        const nextStatus =
+          existingCount === 0 ? PROJECT_STATUS.DRAFT_1 :
+          existingCount === 1 ? PROJECT_STATUS.DRAFT_2 :
+          existingCount === 2 ? PROJECT_STATUS.DRAFT_3 :
+          PROJECT_STATUS.FINAL_REVISIONS
         return {
           ...p,
-          status: PROJECT_STATUS.DRAFT_1,
+          status: nextStatus,
           drafts: [...(p.drafts ?? []), draft],
         }
       }),
@@ -87,7 +97,7 @@ const useProjectStore = create(
     }))
   },
 
-  /** Create a new project */
+  /** Create a new project — auto-generates standard workflow todos for assigned designers */
   createProject: (projectData) => {
     const newProject = {
       id: `proj_${Date.now()}`,
@@ -95,7 +105,42 @@ const useProjectStore = create(
       progress: 0,
       ...projectData,
     }
-    set((state) => ({ projects: [newProject, ...state.projects] }))
+
+    // Standard workflow todos every designer gets for a new project
+    const STANDARD_TODOS = [
+      'Review project brief & intake form',
+      'Join kick-off call with client',
+      'Submit Draft 1',
+      'Review client feedback on Draft 1',
+      'Submit Draft 2',
+      'Review client feedback on Draft 2',
+      'Submit Final Draft',
+      'Make final revisions',
+      'Prepare & deliver launch files',
+    ]
+
+    set((state) => {
+      const updatedDesignerTodos = { ...state.designerTodos }
+
+      // Auto-generate todos for each assigned designer
+      for (const designerId of (projectData.designerIds ?? [])) {
+        const existing = updatedDesignerTodos[designerId] ?? []
+        const newTodos = STANDARD_TODOS.map((text, i) => ({
+          id: `dtodo_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 9)}`,
+          text: `[${projectData.name}] ${text}`,
+          done: false,
+          isPriority: i === 0, // first task is priority
+          projectId: newProject.id,
+          createdAt: new Date().toISOString(),
+        }))
+        updatedDesignerTodos[designerId] = [...existing, ...newTodos]
+      }
+
+      return {
+        projects: [newProject, ...state.projects],
+        designerTodos: updatedDesignerTodos,
+      }
+    })
     return newProject
   },
 

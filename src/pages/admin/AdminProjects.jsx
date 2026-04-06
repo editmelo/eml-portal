@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabase'
 import { PROJECT_STATUS } from '../../lib/constants'
 import { formatCurrency, formatDate } from '../../lib/utils'
 import { cn } from '../../lib/utils'
+import RichBrief from '../../components/ui/RichBrief'
 import {
   Plus, Search, ChevronDown, ChevronUp, X, Edit2,
   User, Calendar, DollarSign, Save, Users, Sparkles, Clock,
@@ -150,7 +151,8 @@ function NewProjectModal({ onClose, isDark, clients, designers }) {
             </div>
             <div className="col-span-2">
               <label className={LABEL}>Project Brief</label>
-              <textarea className={cn(INPUT, 'resize-none')} rows={3} placeholder="Short description of the project scope…" value={form.brief} onChange={(e) => set_('brief', e.target.value)} />
+              <textarea className={cn(INPUT, 'resize-y')} rows={8} placeholder={"Describe the project scope, deliverables, and key details…\n\nUse **double asterisks** to bold important info.\nLine breaks are preserved exactly as you type them."} value={form.brief} onChange={(e) => set_('brief', e.target.value)} />
+              <p className="text-[10px] text-slate-600 mt-1">Tip: Use **bold** for emphasis. Line breaks are preserved.</p>
             </div>
             <div className="col-span-2">
               <label className={LABEL}>Tags (comma-separated)</label>
@@ -305,7 +307,8 @@ function EditProjectModal({ project, onClose, isDark, clients, designers }) {
             </div>
             <div className="col-span-2">
               <label className={LABEL}>Project Brief</label>
-              <textarea className={cn(INPUT, 'resize-none')} rows={3} value={form.brief} onChange={(e) => set_('brief', e.target.value)} />
+              <textarea className={cn(INPUT, 'resize-y')} rows={8} value={form.brief} onChange={(e) => set_('brief', e.target.value)} />
+              <p className="text-[10px] text-slate-600 mt-1">Tip: Use **bold** for emphasis. Line breaks are preserved.</p>
             </div>
             <div className="col-span-2">
               <label className={LABEL}>Tags (comma-separated)</label>
@@ -382,7 +385,7 @@ function ProjectRow({ project, isDark, profiles, clients, designers }) {
             {project.brief && (
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Project Brief</p>
-                <p className="text-sm text-slate-300 leading-relaxed">{project.brief}</p>
+                <RichBrief text={project.brief} className="text-sm text-slate-300" />
               </div>
             )}
 

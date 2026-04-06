@@ -5,6 +5,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '../../components/ui/Card'
 import { StatusBadge, Badge } from '../../components/ui/Badge'
 import ProgressBar from '../../components/ui/ProgressBar'
 import FolderPanel from '../../components/ui/FolderPanel'
+import RichBrief from '../../components/ui/RichBrief'
 import useAuthStore, { selectUser } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
 import { MOCK_USERS } from '../../lib/mockData'
@@ -505,7 +506,7 @@ function ProjectCard({ project }) {
           <CardBody className="space-y-4 pt-2">
             {/* Brief + tags */}
             {project.brief && (
-              <p className="text-sm text-slate-600 leading-relaxed">{project.brief}</p>
+              <RichBrief text={project.brief} className="text-sm text-slate-600" />
             )}
             <div className="flex flex-wrap gap-2">
               {project.tags?.map((t) => <Badge key={t}>{t}</Badge>)}
