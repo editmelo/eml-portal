@@ -532,9 +532,13 @@ function AdminClientNotes({ projectId }) {
 }
 
 // ── Project Row ───────────────────────────────────────────────────────────────
+const ALL_STATUS_OPTIONS = Object.values(PROJECT_STATUS)
+
 function ProjectRow({ project, isDark, profiles, clients, designers }) {
   const [expanded,  setExpanded]  = useState(false)
   const [editOpen,  setEditOpen]  = useState(false)
+  const [statusOpen, setStatusOpen] = useState(false)
+  const updateProjectStatus = useProjectStore((s) => s.updateProjectStatus)
   const intakeForm      = useProjectStore((s) => s.intakeForms[project.id])
   const brief           = useProjectStore((s) => s.projectBriefs[project.id])
   const clientProfiles  = useProjectStore((s) => s.clientProfiles)
@@ -627,6 +631,38 @@ function ProjectRow({ project, isDark, profiles, clients, designers }) {
               <span className="flex items-center gap-1"><User size={11} /> {clientName}</span>
               {businessName && <span className="flex items-center gap-1"><Building2 size={11} /> {businessName}</span>}
               <span className="flex items-center gap-1"><Users size={11} /> Designer: {designerNames}</span>
+            </div>
+
+            {/* Status updater */}
+            <div className="relative">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5">Update Status</p>
+              <button
+                onClick={() => setStatusOpen((o) => !o)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-admin-border bg-admin-bg text-sm text-slate-200 hover:border-brand-400/50 transition-colors w-full sm:w-64 text-left"
+              >
+                <span className="flex-1">{project.status}</span>
+                <ChevronDown size={14} className="text-slate-500" />
+              </button>
+              {statusOpen && (
+                <div className="absolute top-full left-0 mt-1 w-full sm:w-64 bg-admin-surface rounded-xl border border-admin-border shadow-lg z-10 max-h-64 overflow-y-auto">
+                  {ALL_STATUS_OPTIONS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        updateProjectStatus(project.id, s)
+                        setStatusOpen(false)
+                        toast.success(`Status updated to "${s}"`)
+                      }}
+                      className={cn(
+                        'w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 transition-colors',
+                        project.status === s ? 'text-brand-400 font-semibold' : 'text-slate-300'
+                      )}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Brief */}
