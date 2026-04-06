@@ -20,7 +20,15 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const STATUS_OPTIONS = Object.values(PROJECT_STATUS)
+// Designers can only update to these statuses
+const STATUS_OPTIONS = [
+  PROJECT_STATUS.DRAFT_1,
+  PROJECT_STATUS.DRAFT_2,
+  PROJECT_STATUS.DRAFT_3,
+  PROJECT_STATUS.FINAL_REVISIONS,
+  PROJECT_STATUS.LAUNCH,
+  PROJECT_STATUS.DONE,
+]
 
 // ── Notes panel for a draft ───────────────────────────────────────────────────
 function DraftNotes({ draft, profiles = [] }) {
