@@ -49,6 +49,18 @@ export const STATUS_CONFIG = {
   [PROJECT_STATUS.DEAD]:              { label: 'Dead',              bg: 'bg-red-100',     text: 'text-red-800',     dot: 'bg-red-400' },
 }
 
+// ─── Project Types ───────────────────────────────────────────────────────────
+export const PROJECT_TYPES = [
+  'Website Design',
+  'Brand Identity',
+  'Social Media Management',
+  'Creative On-Demand',
+  'Logo Design',
+  'Print Design',
+  'Packaging Design',
+  'Other',
+]
+
 // ─── Invoice Statuses ─────────────────────────────────────────────────────────
 export const INVOICE_STATUS = {
   PENDING:  'Pending',

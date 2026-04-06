@@ -42,13 +42,16 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
     )
-    const { data: { user: caller }, error: authError } = await supabaseAuth.auth.getUser(token)
+    // Try normal auth first, but wrap in try-catch for oversized tokens
+    try {
+      const { data: { user: caller } } = await supabaseAuth.auth.getUser(token)
+      if (caller) userId = caller.id
+    } catch (_authErr) {
+      // getUser failed (likely oversized token) — fall through to JWT decode
+    }
 
-    if (caller) {
-      userId = caller.id
-    } else {
-      // Fallback: decode JWT payload to get sub (user ID)
-      // JWT is header.payload.signature — we only need the payload
+    // Fallback: decode JWT payload directly to extract user ID
+    if (!userId) {
       try {
         const parts = token.split('.')
         if (parts.length === 3) {

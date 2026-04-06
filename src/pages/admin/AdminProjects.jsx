@@ -9,7 +9,7 @@ import useProjectStore from '../../store/projectStore'
 import useAuthStore, { selectUser } from '../../store/authStore'
 import useThemeStore from '../../store/themeStore'
 import { supabase } from '../../lib/supabase'
-import { PROJECT_STATUS } from '../../lib/constants'
+import { PROJECT_STATUS, PROJECT_TYPES } from '../../lib/constants'
 import { formatCurrency, formatDate } from '../../lib/utils'
 import { cn } from '../../lib/utils'
 import RichBrief from '../../components/ui/RichBrief'
@@ -39,6 +39,7 @@ function NewProjectModal({ onClose, isDark, clients, designers }) {
     designerPayout: '',
     brief:          '',
     tags:           '',
+    projectType:    '',
   })
 
   const selectedClientBusinesses = form.clientId ? (clientProfiles[form.clientId]?.businesses ?? []) : []
@@ -70,6 +71,7 @@ function NewProjectModal({ onClose, isDark, clients, designers }) {
       designerPayout: parseFloat(form.designerPayout) || 0,
       brief:          form.brief.trim(),
       tags:           form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
+      projectType:    form.projectType || null,
     })
     toast.success(`Project "${form.name}" created!`)
     onClose()
@@ -113,6 +115,13 @@ function NewProjectModal({ onClose, isDark, clients, designers }) {
               <label className={LABEL}>Status</label>
               <select className={SELECT} value={form.status} onChange={(e) => set_('status', e.target.value)}>
                 {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL}>Project Type</label>
+              <select className={SELECT} value={form.projectType} onChange={(e) => set_('projectType', e.target.value)}>
+                <option value="">— Select type —</option>
+                {PROJECT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
@@ -190,6 +199,7 @@ function EditProjectModal({ project, onClose, isDark, clients, designers }) {
     designerPayout: String(project.designerPayout ?? ''),
     brief:          project.brief ?? '',
     tags:           (project.tags ?? []).join(', '),
+    projectType:    project.projectType ?? '',
     progress:       String(project.progress ?? 0),
   })
 
@@ -221,6 +231,7 @@ function EditProjectModal({ project, onClose, isDark, clients, designers }) {
       designerPayout: parseFloat(form.designerPayout) || 0,
       brief:          form.brief.trim(),
       tags:           form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
+      projectType:    form.projectType || null,
       progress:       Math.min(100, Math.max(0, parseInt(form.progress) || 0)),
     })
     toast.success('Project updated')
@@ -265,6 +276,13 @@ function EditProjectModal({ project, onClose, isDark, clients, designers }) {
               <label className={LABEL}>Status</label>
               <select className={SELECT} value={form.status} onChange={(e) => set_('status', e.target.value)}>
                 {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL}>Project Type</label>
+              <select className={SELECT} value={form.projectType} onChange={(e) => set_('projectType', e.target.value)}>
+                <option value="">— Select type —</option>
+                {PROJECT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
@@ -533,6 +551,71 @@ function AdminClientNotes({ projectId }) {
 
 // ── Project Row ───────────────────────────────────────────────────────────────
 const ALL_STATUS_OPTIONS = Object.values(PROJECT_STATUS)
+
+// ── Time Extension Requests (designer asked for more days) ──────────────────
+function TimeExtensionRequests({ isDark }) {
+  const timeExtensions = useProjectStore((s) => s.timeExtensions)
+  const updateTimeExtensionStatus = useProjectStore((s) => s.updateTimeExtensionStatus)
+  const updateProject = useProjectStore((s) => s.updateProject)
+  const projects = useProjectStore((s) => s.projects)
+
+  const pending = timeExtensions.filter((r) => r.status === 'Pending')
+  if (pending.length === 0) return null
+
+  const handleApprove = (r) => {
+    // Extend the due date by the requested days
+    const project = projects.find((p) => p.id === r.projectId)
+    if (project?.dueDate) {
+      const newDue = new Date(project.dueDate)
+      newDue.setDate(newDue.getDate() + r.daysRequested)
+      updateProject(r.projectId, { dueDate: newDue.toISOString().split('T')[0] })
+    }
+    updateTimeExtensionStatus(r.id, 'Approved')
+    toast.success(`Approved — ${r.daysRequested} days added to ${r.projectName}`)
+  }
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <Clock size={16} className="text-blue-400" />
+        <h2 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-800'}`}>
+          Time Extension Requests
+        </h2>
+        <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-bold">
+          {pending.length} pending
+        </span>
+      </div>
+      <div className="space-y-2">
+        {pending.map((r) => (
+          <DarkCard key={r.id} className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-100">{r.designerName} needs {r.daysRequested} more day{r.daysRequested > 1 ? 's' : ''}</p>
+                <p className="text-xs text-slate-400 mt-0.5">Project: {r.projectName}</p>
+                {r.reason && <p className="text-xs text-slate-500 mt-1">"{r.reason}"</p>}
+                <p className="text-[10px] text-slate-600 mt-1">{new Date(r.createdAt).toLocaleDateString()}</p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => handleApprove(r)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-admin-border text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                >
+                  <CheckCircle2 size={12} /> Approve
+                </button>
+                <button
+                  onClick={() => { updateTimeExtensionStatus(r.id, 'Denied'); toast('Extension denied') }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-admin-border text-red-400 hover:bg-red-500/10 transition-colors"
+                >
+                  <XCircle size={12} /> Deny
+                </button>
+              </div>
+            </div>
+          </DarkCard>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 function ProjectRow({ project, isDark, profiles, clients, designers }) {
   const [expanded,  setExpanded]  = useState(false)
@@ -1069,6 +1152,9 @@ export default function AdminProjects() {
           {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
+
+      {/* Time extension requests from designers */}
+      <TimeExtensionRequests isDark={isDark} />
 
       {/* Client project requests */}
       <ProjectRequests isDark={isDark} />

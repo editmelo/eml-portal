@@ -4,6 +4,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/Badge'
 import ProgressBar from '../../components/ui/ProgressBar'
 import Button from '../../components/ui/Button'
+import RichBrief from '../../components/ui/RichBrief'
 import useAuthStore, { selectUser } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
 import { formatCurrency, formatDate } from '../../lib/utils'
@@ -55,7 +56,7 @@ export default function ClientDashboard() {
                   </div>
                   <ProgressBar value={project.progress} color="blue" />
                 </div>
-                <p className="text-sm text-slate-500 leading-relaxed">{project.brief}</p>
+                <RichBrief text={project.brief} className="text-sm text-slate-500" />
                 <Button
                   variant="secondary"
                   size="sm"

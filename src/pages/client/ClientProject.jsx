@@ -13,65 +13,39 @@ import { cn } from '../../lib/utils'
 import { CheckCircle2, Clock, Calendar, AlertCircle, StickyNote, Send, MessageCircle, FolderOpen, Sparkles, ChevronDown, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-// ── Timeline items with dates and notes ───────────────────────────────────────
-const TIMELINE = [
-  {
-    label:   'Intake Form Submitted',
-    date:    '2025-01-08',
-    done:    true,
-    note:    'Client completed onboarding questionnaire. Brand assets provided.',
-  },
-  {
-    label:   'Kickoff Call',
-    date:    '2025-01-10',
-    done:    true,
-    note:    '60-min strategy session. Agreed on brand direction: modern, minimal, navy + cyan palette.',
-  },
-  {
-    label:   'Brand Discovery & Research',
-    date:    '2025-01-17',
-    done:    true,
-    note:    'Competitor analysis and mood board delivered for review.',
-  },
-  {
-    label:   'Initial Concepts Delivered',
-    date:    '2025-01-28',
-    done:    true,
-    note:    '3 logo concepts uploaded to Drafts & Review. Awaiting feedback.',
-  },
-  {
-    label:   'Client Feedback Round 1',
-    date:    '2025-02-04',
-    done:    false,
-    deadline: true,
-    note:    'Please review the uploaded drafts and leave your notes by this date.',
-  },
-  {
-    label:   'Revisions & Refinements',
-    date:    '2025-02-14',
-    done:    false,
-    note:    'Designer will apply feedback and refine chosen direction.',
-  },
-  {
-    label:   'Client Feedback Round 2',
-    date:    '2025-02-21',
-    done:    false,
-    deadline: true,
-    note:    'Final round of feedback before production files are prepared.',
-  },
-  {
-    label:   'Final File Delivery',
-    date:    '2025-03-01',
-    done:    false,
-    note:    'All production-ready files delivered via shared folder (PDF, PNG, SVG, AI).',
-  },
-  {
-    label:   'Project Complete',
-    date:    '2025-03-07',
-    done:    false,
-    note:    'Final sign-off, invoice settled, project archived.',
-  },
+// ── Timeline steps derived from project status ──────────────────────────────
+// Each step maps to a project status. Steps up to and including the current
+// status are marked done. This way the admin controls progress via status.
+import { PROJECT_STATUS } from '../../lib/constants'
+
+const STEP_ORDER = [
+  { status: PROJECT_STATUS.NEW,               label: 'Project Created',           note: 'Your project has been set up in the system.' },
+  { status: PROJECT_STATUS.CONSULTATION,      label: 'Consultation',              note: 'Discovery call to understand your goals and vision.' },
+  { status: PROJECT_STATUS.PROJECT_PROPOSAL,  label: 'Project Proposal',          note: 'Review your custom project proposal and scope.' },
+  { status: PROJECT_STATUS.SERVICE_AGREEMENT, label: 'Service Agreement',         note: 'Sign the service agreement to get started.' },
+  { status: PROJECT_STATUS.INVOICE_DEPOSIT,   label: 'Deposit Invoice',           note: 'Deposit invoice sent for review.' },
+  { status: PROJECT_STATUS.DEPOSIT_PAID,      label: 'Deposit Paid',              note: 'Deposit received — project is officially underway!' },
+  { status: PROJECT_STATUS.KICK_OFF_CALL,     label: 'Kick-Off Call',             note: 'Strategy session to align on direction, timeline, and deliverables.' },
+  { status: PROJECT_STATUS.DRAFT_1,           label: 'Draft 1 Delivered',         note: 'First draft is ready for your review in Drafts & Review.', deadline: true },
+  { status: PROJECT_STATUS.DRAFT_2,           label: 'Draft 2 Delivered',         note: 'Revised draft based on your feedback.', deadline: true },
+  { status: PROJECT_STATUS.DRAFT_3,           label: 'Draft 3 Delivered',         note: 'Third revision delivered for review.', deadline: true },
+  { status: PROJECT_STATUS.FINAL_REVISIONS,   label: 'Final Revisions',           note: 'Final tweaks before production files are prepared.' },
+  { status: PROJECT_STATUS.INVOICE_REMAINDER, label: 'Final Invoice',             note: 'Remaining balance invoice sent.' },
+  { status: PROJECT_STATUS.LAUNCH,            label: 'Launch',                    note: 'All final files delivered — your project is live!' },
+  { status: PROJECT_STATUS.DONE,              label: 'Project Complete',          note: 'Project wrapped up. Thank you!' },
 ]
+
+function buildTimeline(project) {
+  const statusList = STEP_ORDER.map((s) => s.status)
+  const currentIdx = statusList.indexOf(project?.status)
+  return STEP_ORDER.map((step, i) => ({
+    label:    step.label,
+    note:     step.note,
+    date:     null, // dates come from project start/due, not hardcoded
+    done:     i <= currentIdx,
+    deadline: step.deadline && i === currentIdx + 1, // next step after current is the action item
+  }))
+}
 
 // ── Notes Hub ─────────────────────────────────────────────────────────────────
 function NotesHub({ projectId }) {
@@ -493,6 +467,7 @@ export default function ClientProject() {
     )
   }
 
+  const TIMELINE       = buildTimeline(project)
   const completedSteps = TIMELINE.filter((t) => t.done).length
   const nextDeadline   = TIMELINE.find((t) => !t.done && t.deadline)
 
@@ -553,7 +528,7 @@ export default function ClientProject() {
               <AlertCircle size={18} className="text-amber-500 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-amber-800">Action Required: {nextDeadline.label}</p>
-                <p className="text-xs text-amber-600 mt-0.5">Due {formatDate(nextDeadline.date)} — {nextDeadline.note}</p>
+                <p className="text-xs text-amber-600 mt-0.5">{nextDeadline.note}</p>
               </div>
             </div>
           )}
@@ -595,10 +570,12 @@ export default function ClientProject() {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <Calendar size={10} className="text-slate-400" />
-                      <span className="text-[10px] text-slate-400">{formatDate(step.date)}</span>
-                    </div>
+                    {step.date && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Calendar size={10} className="text-slate-400" />
+                        <span className="text-[10px] text-slate-400">{formatDate(step.date)}</span>
+                      </div>
+                    )}
                     {step.note && (
                       <div className="flex items-start gap-1.5 mt-1.5 bg-slate-50 rounded-lg px-2.5 py-2">
                         <StickyNote size={10} className="text-slate-400 shrink-0 mt-0.5" />

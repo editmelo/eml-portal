@@ -122,7 +122,16 @@ export default function Sidebar({ open, onClose }) {
     })
   }, [user?.id])
 
-  const navItems = NAV_CONFIG[viewRole] ?? []
+  const projects = useProjectStore((s) => s.projects)
+  const clientProject = viewRole === ROLES.CLIENT
+    ? projects.find((p) => p.clientId === user?.id)
+    : null
+  const hasWebsiteProject = clientProject?.projectType === 'Website Design'
+
+  const rawNavItems = NAV_CONFIG[viewRole] ?? []
+  const navItems = viewRole === ROLES.CLIENT
+    ? rawNavItems.filter((item) => item.path !== '/client/updates' || hasWebsiteProject)
+    : rawNavItems
   const businesses = clientProfile?.businesses ?? []
   const activeBusinessId = clientProfile?.activeBusinessId
   const activeBusiness = businesses.find((b) => b.id === activeBusinessId)

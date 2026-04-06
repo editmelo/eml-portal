@@ -32,6 +32,7 @@ const useProjectStore = create(
   folders:         [],   // [{ id, name, ownerId, ownerRole, ownerName, context, contextId, clientVisible, createdAt, files[] }]
   projectRequests: [],   // [{ id, clientId, clientName, clientEmail, businessId, serviceType, description, timeline, budget, goal, status, createdAt }]
   updateRequests:  [],   // [{ id, clientId, clientName, clientEmail, projectId, updateType, pageUrl, description, priority, status, createdAt }]
+  timeExtensions:  [],   // [{ id, projectId, projectName, designerId, designerName, daysRequested, reason, status, createdAt }]
   financials:      { monthlyRevenue: 0, monthlyExpenses: 0, ytdRevenue: 0, ytdExpenses: 0, goalMonthly: 5000, goalYearly: 60000, monthlyBreakdown: [] },
   isLoading:       false,
 
@@ -632,6 +633,27 @@ const useProjectStore = create(
     }))
   },
 
+  // ── Time Extension Request Actions ─────────────────────────────────────────
+
+  submitTimeExtension: (request) => {
+    const newRequest = {
+      id: `ext_${Date.now()}`,
+      status: 'Pending',
+      createdAt: new Date().toISOString(),
+      ...request,
+    }
+    set((state) => ({ timeExtensions: [newRequest, ...state.timeExtensions] }))
+    return newRequest
+  },
+
+  updateTimeExtensionStatus: (requestId, status) => {
+    set((state) => ({
+      timeExtensions: state.timeExtensions.map((r) =>
+        r.id === requestId ? { ...r, status } : r
+      ),
+    }))
+  },
+
   // ── Selectors (callable inside components via store) ───────────────────────
 
   /** Projects visible to a specific designer */
@@ -718,6 +740,7 @@ const useProjectStore = create(
         folders:         state.folders,
         projectRequests: state.projectRequests,
         updateRequests:  state.updateRequests,
+        timeExtensions:  state.timeExtensions,
         financials:      state.financials,
       }),
     }

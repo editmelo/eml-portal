@@ -16,7 +16,7 @@ import {
   Search, ChevronDown, ChevronUp, StickyNote,
   MessageSquare, User, FileText, X, Building2,
   Phone, Mail, Send, Palette, Tag, Target,
-  MessageCircle, Clock, DollarSign, Calendar, Lock,
+  MessageCircle, Clock, DollarSign, Calendar, Lock, TimerReset,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -654,6 +654,80 @@ function ClientNotesPanel({ projectId }) {
   )
 }
 
+// ── Time Extension Request ───────────────────────────────────────────────────
+const EXTRA_DAYS_OPTIONS = [1, 2, 3, 5, 7, 10, 14]
+
+function TimeExtensionPanel({ project }) {
+  const user = useAuthStore(selectUser)
+  const submitTimeExtension = useProjectStore((s) => s.submitTimeExtension)
+  const [days, setDays] = useState('')
+  const [reason, setReason] = useState('')
+  const [open, setOpen] = useState(false)
+
+  const handleSubmit = () => {
+    if (!days) { toast.error('Select how many days you need'); return }
+    submitTimeExtension({
+      projectId:    project.id,
+      projectName:  project.name,
+      designerId:   user?.id,
+      designerName: user?.name,
+      daysRequested: parseInt(days),
+      reason:       reason.trim(),
+    })
+    toast.success('Time extension request sent to admin')
+    setDays('')
+    setReason('')
+    setOpen(false)
+  }
+
+  return (
+    <div className="rounded-xl border border-blue-200 bg-blue-50/50 overflow-hidden">
+      <button
+        className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-blue-50 transition-colors"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <TimerReset size={13} className="text-blue-500" />
+        <span className="text-xs font-semibold text-blue-700 flex-1">Request More Time</span>
+        {open ? <ChevronUp size={12} className="text-blue-400" /> : <ChevronDown size={12} className="text-blue-400" />}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-3">
+          <div>
+            <label className="block text-[10px] font-medium text-slate-500 mb-1">How many extra days do you need?</label>
+            <select
+              className="w-full rounded-lg border border-slate-200 bg-white text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+              value={days}
+              onChange={(e) => setDays(e.target.value)}
+            >
+              <option value="">— Select —</option>
+              {EXTRA_DAYS_OPTIONS.map((d) => (
+                <option key={d} value={d}>{d} day{d > 1 ? 's' : ''}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-slate-500 mb-1">Reason (optional)</label>
+            <input
+              className="w-full rounded-lg border border-slate-200 bg-white text-sm px-3 py-2 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+              placeholder="Why do you need more time?"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+            />
+          </div>
+          <button
+            onClick={handleSubmit}
+            className="w-full px-3 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors"
+          >
+            Submit Request
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Single project card ───────────────────────────────────────────────────────
 function ProjectCard({ project, profiles = [] }) {
   const updateStatus   = useProjectStore((s) => s.updateProjectStatus)
@@ -833,8 +907,9 @@ function ProjectCard({ project, profiles = [] }) {
               )}
             </div>
 
-            {/* ── Notes Section ── */}
+            {/* ── Notes & Requests Section ── */}
             <div className="border-t border-slate-100 pt-4 space-y-3">
+              <TimeExtensionPanel project={project} />
               <InternalNotesPanel projectId={project.id} />
               <ClientNotesPanel projectId={project.id} />
             </div>
