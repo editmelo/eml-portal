@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import PortalLayout from '../../components/layout/PortalLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import { Card, CardBody, CardHeader, CardTitle } from '../../components/ui/Card'
@@ -8,7 +8,7 @@ import FolderPanel from '../../components/ui/FolderPanel'
 import RichBrief from '../../components/ui/RichBrief'
 import useAuthStore, { selectUser } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
-import { MOCK_USERS } from '../../lib/mockData'
+import { supabase } from '../../lib/supabase'
 import { PROJECT_STATUS } from '../../lib/constants'
 import { formatDate, formatCurrency } from '../../lib/utils'
 import { cn } from '../../lib/utils'
@@ -22,20 +22,13 @@ import toast from 'react-hot-toast'
 
 const STATUS_OPTIONS = Object.values(PROJECT_STATUS)
 
-function getClientUser(clientId) {
-  return MOCK_USERS.find((u) => u.id === clientId) ?? null
-}
-
-function getClientName(clientId) {
-  return getClientUser(clientId)?.name ?? '—'
-}
-
 // ── Notes panel for a draft ───────────────────────────────────────────────────
-function DraftNotes({ draft }) {
+function DraftNotes({ draft, profiles = [] }) {
   const [open, setOpen] = useState(false)
+  const getName = (id) => profiles.find((u) => u.id === id)?.name ?? 'Client'
   const allNotes = [
     ...(draft.notes ?? []),
-    ...(draft.comments ?? []).map((c) => ({ ...c, authorName: getClientName(c.authorId) })),
+    ...(draft.comments ?? []).map((c) => ({ ...c, authorName: getName(c.authorId) })),
   ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
 
   if (allNotes.length === 0) return (
@@ -76,7 +69,7 @@ function DraftNotes({ draft }) {
 }
 
 // ── Client Profile Modal ──────────────────────────────────────────────────────
-function ClientProfileModal({ clientId, project, onClose }) {
+function ClientProfileModal({ clientId, project, onClose, profiles = [] }) {
   const clientProfile  = useProjectStore((s) => s.clientProfiles[clientId])
   const intakeForm     = useProjectStore((s) => s.intakeForms[project?.id])
   const projectNotes   = useProjectStore((s) => s.projectNotes[project?.id]) ?? []
@@ -119,15 +112,15 @@ function ClientProfileModal({ clientId, project, onClose }) {
   const [activeSection, setActiveSection] = useState('profile')
   const inputRef = useRef(null)
 
-  const clientUser = getClientUser(clientId)
-  const displayName = clientProfile?.name ?? clientUser?.name ?? 'Client'
+  const supabaseUser = profiles.find((u) => u.id === clientId)
+  const displayName = clientProfile?.name ?? supabaseUser?.name ?? 'Client'
   const avatar      = clientProfile?.avatar ?? null
   const clientBiz   = clientProfile?.businesses ?? []
   const company     = clientBiz.length > 0
     ? (project?.businessId ? clientBiz.find((b) => b.id === project.businessId)?.name : clientBiz[0]?.name)
-    : (clientProfile?.company ?? clientUser?.company ?? null)
-  const phone       = clientProfile?.phone ?? clientUser?.phone ?? null
-  const email       = clientUser?.email ?? null
+    : (clientProfile?.company ?? null)
+  const phone       = clientProfile?.phone ?? supabaseUser?.phone ?? null
+  const email       = supabaseUser?.email ?? null
 
   const handleSendNote = () => {
     if (!noteText.trim()) return
@@ -654,7 +647,7 @@ function ClientNotesPanel({ projectId }) {
 }
 
 // ── Single project card ───────────────────────────────────────────────────────
-function ProjectCard({ project }) {
+function ProjectCard({ project, profiles = [] }) {
   const updateStatus   = useProjectStore((s) => s.updateProjectStatus)
   const brief          = useProjectStore((s) => s.projectBriefs[project.id])
   const clientProfiles = useProjectStore((s) => s.clientProfiles)
@@ -662,7 +655,7 @@ function ProjectCard({ project }) {
   const [statusOpen, setStatusOpen] = useState(false)
   const [clientModalOpen, setClientModalOpen] = useState(false)
 
-  const clientName = getClientName(project.clientId)
+  const clientName = profiles.find((u) => u.id === project.clientId)?.name ?? '—'
   const clientProfile = clientProfiles[project.clientId]
   const businessName = project.businessId
     ? (clientProfile?.businesses ?? []).find((b) => b.id === project.businessId)?.name
@@ -855,7 +848,7 @@ function ProjectCard({ project }) {
                           <p className="text-[10px] text-slate-400">Uploaded {formatDate(draft.uploadedAt)}</p>
                         </div>
                       </div>
-                      <DraftNotes draft={draft} />
+                      <DraftNotes draft={draft} profiles={profiles} />
                     </div>
                   ))}
                 </div>
@@ -872,6 +865,7 @@ function ProjectCard({ project }) {
         <ClientProfileModal
           clientId={project.clientId}
           project={project}
+          profiles={profiles}
           onClose={() => setClientModalOpen(false)}
         />
       )}
@@ -884,13 +878,22 @@ export default function DesignerProjects() {
   const user     = useAuthStore(selectUser)
   const projects = useProjectStore((s) => s.projects)
   const [query, setQuery] = useState('')
+  const [profiles, setProfiles] = useState([])
+
+  useEffect(() => {
+    supabase.from('profiles').select('*').then(({ data }) => {
+      if (data) setProfiles(data)
+    })
+  }, [])
+
+  const getProfileName = (id) => profiles.find((u) => u.id === id)?.name ?? '—'
 
   const myProjects = projects.filter((p) => p.designerIds?.includes(user?.id))
 
   const filtered = myProjects.filter((p) => {
     const q = query.toLowerCase()
     if (!q) return true
-    const clientName = getClientName(p.clientId).toLowerCase()
+    const clientName = getProfileName(p.clientId).toLowerCase()
     return (
       p.name.toLowerCase().includes(q) ||
       clientName.includes(q) ||
@@ -929,7 +932,7 @@ export default function DesignerProjects() {
 
       <div className="space-y-4">
         {filtered.map((p) => (
-          <ProjectCard key={p.id} project={p} />
+          <ProjectCard key={p.id} project={p} profiles={profiles} />
         ))}
       </div>
     </PortalLayout>
