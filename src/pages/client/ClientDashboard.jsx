@@ -1,15 +1,79 @@
+import { useState } from 'react'
 import PortalLayout from '../../components/layout/PortalLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import { Card, CardBody, CardHeader, CardTitle } from '../../components/ui/Card'
 import { StatusBadge } from '../../components/ui/Badge'
 import ProgressBar from '../../components/ui/ProgressBar'
 import Button from '../../components/ui/Button'
-import RichBrief from '../../components/ui/RichBrief'
 import useAuthStore, { selectUser } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
 import { formatCurrency, formatDate } from '../../lib/utils'
-import { ArrowRight, FileText, Calendar, Image } from 'lucide-react'
+import { ArrowRight, FileText, Calendar, Image, ChevronDown, ChevronUp, DollarSign } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+
+function ProjectSummaryCard({ project, navigate }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <Card>
+      {/* Clickable header — always visible */}
+      <button className="w-full text-left" onClick={() => setExpanded((o) => !o)}>
+        <CardHeader className="flex flex-row items-center justify-between hover:bg-slate-50/60 transition-colors">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="truncate">{project.name}</CardTitle>
+            <p className="text-xs text-slate-400 mt-0.5">Due {formatDate(project.dueDate)}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 ml-3">
+            <StatusBadge status={project.status} />
+            {expanded ? <ChevronUp size={15} className="text-slate-400" /> : <ChevronDown size={15} className="text-slate-400" />}
+          </div>
+        </CardHeader>
+      </button>
+
+      {/* Expanded details */}
+      {expanded && (
+        <CardBody className="space-y-4 pt-2">
+          {/* Progress */}
+          <div>
+            <div className="flex justify-between text-xs text-slate-500 mb-2">
+              <span>Project progress</span>
+              <span className="font-medium">{project.progress}%</span>
+            </div>
+            <ProgressBar value={project.progress} color="blue" />
+          </div>
+
+          {/* Key details */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
+              <Calendar size={14} className="text-blue-500 mx-auto mb-1" />
+              <p className="text-xs font-semibold text-slate-700">{project.status}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Current Status</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
+              <Calendar size={14} className="text-amber-500 mx-auto mb-1" />
+              <p className="text-xs font-semibold text-slate-700">{formatDate(project.dueDate) || '—'}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Due Date</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
+              <DollarSign size={14} className="text-emerald-500 mx-auto mb-1" />
+              <p className="text-xs font-semibold text-slate-700">{formatCurrency(project.projectValue)}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Project Value</p>
+            </div>
+          </div>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<ArrowRight size={14} />}
+            onClick={() => navigate('/client/project')}
+          >
+            View full project
+          </Button>
+        </CardBody>
+      )}
+    </Card>
+  )
+}
 
 export default function ClientDashboard() {
   const user     = useAuthStore(selectUser)
@@ -40,33 +104,7 @@ export default function ClientDashboard() {
         {/* Project status card — takes 2 cols */}
         <div className="lg:col-span-2 space-y-4">
           {project ? (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>{project.name}</CardTitle>
-                  <p className="text-xs text-slate-400 mt-0.5">Due {formatDate(project.dueDate)}</p>
-                </div>
-                <StatusBadge status={project.status} />
-              </CardHeader>
-              <CardBody className="space-y-5">
-                <div>
-                  <div className="flex justify-between text-xs text-slate-500 mb-2">
-                    <span>Project progress</span>
-                    <span className="font-medium">{project.progress}%</span>
-                  </div>
-                  <ProgressBar value={project.progress} color="blue" />
-                </div>
-                <RichBrief text={project.brief} className="text-sm text-slate-500" />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={<ArrowRight size={14} />}
-                  onClick={() => navigate('/client/project')}
-                >
-                  View full project
-                </Button>
-              </CardBody>
-            </Card>
+            <ProjectSummaryCard project={project} navigate={navigate} />
           ) : (
             <Card>
               <CardBody className="text-center py-12">

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { supabase } from '../lib/supabase'
 
 // ── Shape converters ───────────────────────────────────────────────────────────
@@ -23,7 +24,9 @@ function dbMsgToLocal(row) {
   }
 }
 
-const useMessagingStore = create((set, get) => ({
+const useMessagingStore = create(
+  persist(
+    (set, get) => ({
   conversations: [],
   messages:      {},
   lastRead:      {},
@@ -142,18 +145,21 @@ const useMessagingStore = create((set, get) => ({
       },
     }))
 
-    // Persist
-    await supabase.from('messages').insert({
+    // Persist to Supabase
+    const { error: msgErr } = await supabase.from('messages').insert({
       id,
       conversation_id: convId,
       sender_id:       senderId,
       sender_name:     senderName,
       text:            trimmed,
     })
-    await supabase.from('conversations').update({
+    if (msgErr) console.error('[messaging] message insert failed:', msgErr)
+
+    const { error: convErr } = await supabase.from('conversations').update({
       last_message_at:   now,
       last_message_text: trimmed,
     }).eq('id', convId)
+    if (convErr) console.error('[messaging] conversation update failed:', convErr)
   },
 
   markRead: async (userId, convId) => {
@@ -241,6 +247,18 @@ const useMessagingStore = create((set, get) => ({
 
     set({ _realtimeSub: channel })
   },
-}))
+}),
+    {
+      name: 'eml_messaging_store',
+      version: 1,
+      partialize: (state) => ({
+        conversations: state.conversations,
+        messages:      state.messages,
+        lastRead:      state.lastRead,
+        // Don't persist _realtimeSub
+      }),
+    }
+  )
+)
 
 export default useMessagingStore

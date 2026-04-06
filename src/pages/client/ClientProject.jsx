@@ -10,7 +10,7 @@ import useAuthStore, { selectUser } from '../../store/authStore'
 import useProjectStore from '../../store/projectStore'
 import { formatDate } from '../../lib/utils'
 import { cn } from '../../lib/utils'
-import { CheckCircle2, Clock, Calendar, AlertCircle, StickyNote, Send, MessageCircle, FolderOpen, Sparkles, ChevronDown, Check } from 'lucide-react'
+import { CheckCircle2, Clock, Calendar, AlertCircle, StickyNote, Send, MessageCircle, FolderOpen, Sparkles, ChevronDown, ChevronUp, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 // ── Timeline steps derived from project status ──────────────────────────────
@@ -48,6 +48,35 @@ function buildTimeline(project) {
 }
 
 // ── Notes Hub ─────────────────────────────────────────────────────────────────
+function BriefCard({ brief, tags }) {
+  const [open, setOpen] = useState(false)
+  if (!brief) return null
+
+  return (
+    <Card>
+      <button className="w-full text-left" onClick={() => setOpen((o) => !o)}>
+        <CardHeader className="flex flex-row items-center justify-between hover:bg-slate-50/60 transition-colors">
+          <CardTitle>Project Brief</CardTitle>
+          <div className="flex items-center gap-1.5 text-xs text-brand-500 font-medium">
+            {open ? 'Hide' : 'Show'}
+            {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </div>
+        </CardHeader>
+      </button>
+      {open && (
+        <CardBody>
+          <RichBrief text={brief} className="text-sm text-slate-600" />
+          {tags?.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              {tags.map((t) => <Badge key={t} variant="default">{t}</Badge>)}
+            </div>
+          )}
+        </CardBody>
+      )}
+    </Card>
+  )
+}
+
 function NotesHub({ projectId }) {
   const user           = useAuthStore(selectUser)
   const projectNotes   = useProjectStore((s) => s.projectNotes[projectId]) ?? []
@@ -483,16 +512,8 @@ export default function ClientProject() {
         {/* ── Left: Brief + Progress ── */}
         <div className="lg:col-span-2 space-y-5">
 
-          {/* Project Brief */}
-          <Card>
-            <CardHeader><CardTitle>Project Brief</CardTitle></CardHeader>
-            <CardBody>
-              <RichBrief text={project.brief} className="text-sm text-slate-600" />
-              <div className="flex flex-wrap gap-2 mt-4">
-                {project.tags?.map((t) => <Badge key={t} variant="default">{t}</Badge>)}
-              </div>
-            </CardBody>
-          </Card>
+          {/* Project Brief — collapsible */}
+          <BriefCard brief={project.brief} tags={project.tags} />
 
           {/* Overall Progress */}
           <Card>
