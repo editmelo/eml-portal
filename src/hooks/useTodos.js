@@ -39,6 +39,7 @@ export default function useTodos(ownerId, projectId = null) {
         done:       r.done,
         isPriority: r.is_priority,
         projectId:  r.project_id,
+        assignedBy: r.assigned_by ?? null,
         createdAt:  r.created_at,
       })))
     }

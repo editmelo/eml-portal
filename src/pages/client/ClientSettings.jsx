@@ -10,7 +10,7 @@ import {
   User, BookOpen, Bell, Check, Camera, Monitor, Moon, Sun,
   LayoutDashboard, ClipboardList, FolderOpen, Image,
   Receipt, Calendar, ListChecks, ScrollText, Settings,
-  Building2, Plus, Trash2, Pencil, X, AlertTriangle,
+  Building2, Plus, Trash2, Pencil, X, AlertTriangle, Globe,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
@@ -458,7 +458,100 @@ function ProfileTab({ user }) {
           </div>
         )}
       </Card>
+
+      {/* ── Domain Info Section (Website Design clients only) ── */}
+      <DomainInfoSection userId={user?.id} />
     </div>
+  )
+}
+
+// ── Domain Info (for website projects) ───────────────────────────────────────
+function DomainInfoSection({ userId }) {
+  const projects        = useProjectStore((s) => s.projects)
+  const clientProfile   = useProjectStore((s) => s.clientProfiles[userId])
+  const saveClientProfile = useProjectStore((s) => s.saveClientProfile)
+
+  const hasWebsiteProject = projects.some(
+    (p) => p.clientId === userId && p.projectType === 'Website Design'
+  )
+
+  const [domainForm, setDomainForm] = useState({
+    domainName:     clientProfile?.domainName     ?? '',
+    domainProvider: clientProfile?.domainProvider  ?? '',
+    domainLogin:    clientProfile?.domainLogin     ?? '',
+    hostingProvider:clientProfile?.hostingProvider ?? '',
+    hostingLogin:   clientProfile?.hostingLogin    ?? '',
+    domainNotes:    clientProfile?.domainNotes     ?? '',
+  })
+  const [domainSaved, setDomainSaved] = useState(false)
+
+  if (!hasWebsiteProject) return null
+
+  const INPUT = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/30 bg-white'
+  const LABEL = 'block text-xs font-medium text-slate-500 mb-1.5'
+
+  const handleSaveDomain = () => {
+    saveClientProfile(userId, {
+      ...clientProfile,
+      domainName:      domainForm.domainName.trim(),
+      domainProvider:  domainForm.domainProvider.trim(),
+      domainLogin:     domainForm.domainLogin.trim(),
+      hostingProvider: domainForm.hostingProvider.trim(),
+      hostingLogin:    domainForm.hostingLogin.trim(),
+      domainNotes:     domainForm.domainNotes.trim(),
+    })
+    setDomainSaved(true)
+    setTimeout(() => setDomainSaved(false), 2500)
+  }
+
+  return (
+    <Card className="p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <Globe size={15} className="text-brand-500" />
+        <p className="text-sm font-semibold text-slate-800">Domain & Hosting Info</p>
+      </div>
+      <p className="text-[10px] text-slate-400">
+        Since you have a website project, please provide your domain and hosting details so we can connect everything.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className={LABEL}>Domain Name</label>
+          <input className={INPUT} placeholder="www.yourdomain.com" value={domainForm.domainName} onChange={(e) => setDomainForm((f) => ({ ...f, domainName: e.target.value }))} />
+        </div>
+        <div>
+          <label className={LABEL}>Domain Provider</label>
+          <input className={INPUT} placeholder="GoDaddy, Namecheap, Google Domains…" value={domainForm.domainProvider} onChange={(e) => setDomainForm((f) => ({ ...f, domainProvider: e.target.value }))} />
+        </div>
+        <div>
+          <label className={LABEL}>Domain Login / Email</label>
+          <input className={INPUT} placeholder="Login email or username for domain account" value={domainForm.domainLogin} onChange={(e) => setDomainForm((f) => ({ ...f, domainLogin: e.target.value }))} />
+        </div>
+        <div>
+          <label className={LABEL}>Hosting Provider</label>
+          <input className={INPUT} placeholder="Bluehost, SiteGround, Vercel…" value={domainForm.hostingProvider} onChange={(e) => setDomainForm((f) => ({ ...f, hostingProvider: e.target.value }))} />
+        </div>
+        <div>
+          <label className={LABEL}>Hosting Login / Email</label>
+          <input className={INPUT} placeholder="Login email or username for hosting" value={domainForm.hostingLogin} onChange={(e) => setDomainForm((f) => ({ ...f, hostingLogin: e.target.value }))} />
+        </div>
+        <div>
+          <label className={LABEL}>Additional Notes</label>
+          <input className={INPUT} placeholder="DNS settings, nameservers, etc." value={domainForm.domainNotes} onChange={(e) => setDomainForm((f) => ({ ...f, domainNotes: e.target.value }))} />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button onClick={handleSaveDomain} className="px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-semibold hover:bg-brand-600 transition-colors">
+          Save Domain Info
+        </button>
+        {domainSaved && (
+          <span className="text-sm font-medium flex items-center gap-1.5 text-brand-500">
+            <Check size={14} /> Saved!
+          </span>
+        )}
+      </div>
+    </Card>
   )
 }
 

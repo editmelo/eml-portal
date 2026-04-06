@@ -17,7 +17,7 @@ import {
   Plus, Search, ChevronDown, ChevronUp, X, Edit2,
   User, Calendar, DollarSign, Save, Users, Sparkles, Clock,
   CheckCircle2, XCircle, Eye, Globe, Wrench, MessageSquare,
-  Lock, MessageCircle, Send, TrendingUp, Building2,
+  Lock, MessageCircle, Send, TrendingUp, Building2, ListChecks,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -344,6 +344,81 @@ function EditProjectModal({ project, onClose, isDark, clients, designers }) {
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── Assign Task to Client ────────────────────────────────────────────────────
+function AssignClientTask({ project, profiles }) {
+  const user = useAuthStore(selectUser)
+  const [text, setText] = useState('')
+  const [open, setOpen] = useState(false)
+  const inputRef = useRef(null)
+
+  const clientName = profiles.find((u) => u.id === project.clientId)?.name || 'Client'
+
+  const handleSend = async () => {
+    if (!text.trim()) return
+    if (!project.clientId) { toast.error('No client assigned to this project'); return }
+
+    const projectId = project.id
+    const id = `todo_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+
+    const { error } = await supabase.from('todos').insert({
+      id,
+      owner_id:    project.clientId,
+      project_id:  projectId,
+      text:        text.trim(),
+      done:        false,
+      is_priority: false,
+      assigned_by: user?.id,
+    })
+
+    if (error) {
+      console.error('assign task error:', error)
+      toast.error('Failed to assign task')
+      return
+    }
+
+    toast.success(`Task sent to ${clientName}`)
+    setText('')
+    inputRef.current?.focus()
+  }
+
+  return (
+    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 overflow-hidden">
+      <button
+        className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-emerald-500/10 transition-colors"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <ListChecks size={13} className="text-emerald-400" />
+        <span className="text-xs font-semibold text-emerald-300 flex-1">Assign Task to Client</span>
+        <span className="text-[10px] text-emerald-500 mr-1 hidden sm:inline">Shows on their To-Do</span>
+        {open ? <ChevronUp size={12} className="text-emerald-400" /> : <ChevronDown size={12} className="text-emerald-400" />}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-3">
+          <p className="text-[10px] text-emerald-500/60">Task will appear on <strong className="text-emerald-400">{clientName}</strong>'s To-Do list.</p>
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              className="flex-1 rounded-lg border border-admin-border bg-admin-bg text-sm text-slate-100 px-3 py-2 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+              placeholder="Type a task for the client…"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            />
+            <button
+              onClick={handleSend}
+              disabled={!text.trim()}
+              className="px-3 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-40 transition-colors"
+            >
+              <Send size={14} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -800,8 +875,9 @@ function ProjectRow({ project, isDark, profiles, clients, designers }) {
               </div>
             )}
 
-            {/* ── Notes Panels ── */}
+            {/* ── Notes & Task Assignment ── */}
             <div className="space-y-3">
+              <AssignClientTask project={project} profiles={profiles} />
               <AdminInternalNotes projectId={project.id} />
               <AdminClientNotes projectId={project.id} />
             </div>

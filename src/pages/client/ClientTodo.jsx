@@ -106,10 +106,19 @@ export default function ClientTodo() {
                   <button onClick={() => toggleTodo(todo.id)} className="mt-0.5 shrink-0 text-slate-300 hover:text-brand-500 transition-colors">
                     <Circle size={18} />
                   </button>
-                  <span className="flex-1 text-sm text-slate-700 leading-relaxed">{todo.text}</span>
-                  <button onClick={() => handleDelete(todo.id)} className="shrink-0 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all">
-                    <Trash2 size={14} />
-                  </button>
+                  <div className="flex-1">
+                    <span className="text-sm text-slate-700 leading-relaxed">{todo.text}</span>
+                    {todo.assignedBy && (
+                      <span className="ml-2 inline-flex items-center text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-brand-500/10 text-brand-500">
+                        From Edit Me Lo
+                      </span>
+                    )}
+                  </div>
+                  {!todo.assignedBy && (
+                    <button onClick={() => handleDelete(todo.id)} className="shrink-0 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
