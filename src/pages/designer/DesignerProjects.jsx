@@ -817,7 +817,7 @@ function ProjectCard({ project, profiles = [] }) {
                 <ChevronDown size={14} className="text-slate-400" />
               </button>
               {statusOpen && (
-                <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-xl border border-slate-200 shadow-lg z-10 overflow-hidden max-h-64 overflow-y-auto">
+                <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-xl border border-slate-200 shadow-lg z-10 max-h-64 overflow-y-auto">
                   {STATUS_OPTIONS.map((s) => (
                     <button
                       key={s}
