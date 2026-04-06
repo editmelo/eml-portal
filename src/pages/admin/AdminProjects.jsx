@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import AdminLayout from '../../components/layout/AdminLayout'
 import PageHeader from '../../components/layout/PageHeader'
 import { DarkCard } from '../../components/ui/Card'
@@ -6,6 +6,7 @@ import { StatusBadge } from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import ProgressBar from '../../components/ui/ProgressBar'
 import useProjectStore from '../../store/projectStore'
+import useAuthStore, { selectUser } from '../../store/authStore'
 import useThemeStore from '../../store/themeStore'
 import { supabase } from '../../lib/supabase'
 import { PROJECT_STATUS } from '../../lib/constants'
@@ -16,6 +17,7 @@ import {
   Plus, Search, ChevronDown, ChevronUp, X, Edit2,
   User, Calendar, DollarSign, Save, Users, Sparkles, Clock,
   CheckCircle2, XCircle, Eye, Globe, Wrench, MessageSquare,
+  Lock, MessageCircle, Send, TrendingUp, Building2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -328,15 +330,222 @@ function EditProjectModal({ project, onClose, isDark, clients, designers }) {
   )
 }
 
+// ── Internal Notes Panel (admin + designer only, dark theme) ────────────────
+function AdminInternalNotes({ projectId }) {
+  const user            = useAuthStore(selectUser)
+  const internalNotes   = useProjectStore((s) => s.internalNotes[projectId]) ?? []
+  const addInternalNote = useProjectStore((s) => s.addInternalNote)
+  const [text, setText] = useState('')
+  const [open, setOpen] = useState(false)
+  const inputRef        = useRef(null)
+
+  const handleSend = () => {
+    if (!text.trim()) return
+    addInternalNote(projectId, {
+      id:         `inote_${Date.now()}`,
+      authorId:   user?.id,
+      authorRole: user?.role,
+      authorName: user?.name,
+      text:       text.trim(),
+      createdAt:  new Date().toISOString(),
+    })
+    toast.success('Internal note added')
+    setText('')
+    inputRef.current?.focus()
+  }
+
+  return (
+    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 overflow-hidden">
+      <button
+        className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-amber-500/10 transition-colors"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Lock size={13} className="text-amber-400" />
+        <span className="text-xs font-semibold text-amber-300 flex-1">Internal Notes</span>
+        <span className="text-[10px] text-amber-500 mr-1">Admin & Designer only</span>
+        {internalNotes.length > 0 && (
+          <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full">
+            {internalNotes.length}
+          </span>
+        )}
+        {open ? <ChevronUp size={12} className="text-amber-500" /> : <ChevronDown size={12} className="text-amber-500" />}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-3">
+          <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+            {internalNotes.length === 0 ? (
+              <p className="text-xs text-amber-500/60 text-center py-3">No internal notes yet. The client cannot see these.</p>
+            ) : (
+              internalNotes.map((note) => {
+                const isMe = note.authorId === user?.id
+                return (
+                  <div key={note.id} className="flex gap-2">
+                    <div className="h-6 w-6 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0 text-[10px] font-bold text-amber-300">
+                      {(note.authorName ?? '?').charAt(0)}
+                    </div>
+                    <div className="flex-1 bg-white/5 border border-admin-border rounded-lg px-2.5 py-2">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="text-[11px] font-semibold text-slate-200">{isMe ? 'You' : note.authorName}</p>
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">
+                          {note.authorRole}
+                        </span>
+                        <span className="text-[10px] text-slate-500 ml-auto flex items-center gap-1">
+                          <Clock size={9} /> {formatDate(note.createdAt?.split('T')[0])}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed">{note.text}</p>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              className="flex-1 rounded-lg border border-admin-border bg-admin-bg text-sm text-slate-100 px-3 py-2 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+              placeholder="Leave an internal note…"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            />
+            <button
+              onClick={handleSend}
+              disabled={!text.trim()}
+              className="px-3 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-40 transition-colors"
+            >
+              <Send size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Client Notes Panel (visible to client, dark theme) ──────────────────────
+function AdminClientNotes({ projectId }) {
+  const user           = useAuthStore(selectUser)
+  const projectNotes   = useProjectStore((s) => s.projectNotes[projectId]) ?? []
+  const addProjectNote = useProjectStore((s) => s.addProjectNote)
+  const [text, setText] = useState('')
+  const [open, setOpen] = useState(false)
+  const inputRef        = useRef(null)
+
+  const handleSend = () => {
+    if (!text.trim()) return
+    addProjectNote(projectId, {
+      id:         `note_${Date.now()}`,
+      authorId:   user?.id,
+      authorRole: user?.role,
+      authorName: user?.name,
+      text:       text.trim(),
+      createdAt:  new Date().toISOString(),
+    })
+    toast.success('Note sent — client can see this')
+    setText('')
+    inputRef.current?.focus()
+  }
+
+  const roleColor = (role) => {
+    if (role === 'admin' || role === 'ADMIN') return 'bg-red-500/20 text-red-300'
+    if (role === 'designer' || role === 'DESIGNER') return 'bg-brand-500/20 text-brand-300'
+    return 'bg-slate-500/20 text-slate-300'
+  }
+
+  return (
+    <div className="rounded-xl border border-brand-500/20 bg-brand-500/5 overflow-hidden">
+      <button
+        className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-brand-500/10 transition-colors"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <MessageCircle size={13} className="text-brand-400" />
+        <span className="text-xs font-semibold text-brand-300 flex-1">Client Notes</span>
+        <span className="text-[10px] text-brand-500 mr-1">Visible to client</span>
+        {projectNotes.length > 0 && (
+          <span className="text-[10px] font-bold bg-brand-500/20 text-brand-300 px-1.5 py-0.5 rounded-full">
+            {projectNotes.length}
+          </span>
+        )}
+        {open ? <ChevronUp size={12} className="text-brand-400" /> : <ChevronDown size={12} className="text-brand-400" />}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-3">
+          <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+            {projectNotes.length === 0 ? (
+              <p className="text-xs text-brand-500/50 text-center py-3">No notes yet. Messages here are visible to the client.</p>
+            ) : (
+              projectNotes.map((note) => {
+                const isMe = note.authorId === user?.id
+                return (
+                  <div key={note.id} className={cn('flex gap-2', isMe ? 'flex-row-reverse' : '')}>
+                    <div className="h-6 w-6 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0 text-[10px] font-bold text-brand-300">
+                      {(note.authorName ?? '?').charAt(0)}
+                    </div>
+                    <div className={cn(
+                      'flex-1 rounded-lg px-2.5 py-2 max-w-[85%]',
+                      isMe ? 'bg-brand-500 text-white ml-auto' : 'bg-white/5 border border-admin-border'
+                    )}>
+                      <div className={cn('flex items-center gap-2 mb-0.5', isMe ? 'flex-row-reverse' : '')}>
+                        <p className={cn('text-[11px] font-semibold', isMe ? 'text-white/90' : 'text-slate-200')}>
+                          {isMe ? 'You' : note.authorName}
+                        </p>
+                        {!isMe && (
+                          <span className={cn('text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded', roleColor(note.authorRole))}>
+                            {note.authorRole}
+                          </span>
+                        )}
+                        <span className={cn('text-[10px] flex items-center gap-1', isMe ? 'text-white/60 mr-auto' : 'text-slate-500 ml-auto')}>
+                          <Clock size={9} /> {formatDate(note.createdAt?.split('T')[0])}
+                        </span>
+                      </div>
+                      <p className={cn('text-xs leading-relaxed', isMe ? 'text-white' : 'text-slate-300')}>{note.text}</p>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              className="flex-1 rounded-lg border border-admin-border bg-admin-bg text-sm text-slate-100 px-3 py-2 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-400/40"
+              placeholder="Send a note to the client…"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            />
+            <button
+              onClick={handleSend}
+              disabled={!text.trim()}
+              className="px-3 py-2 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 disabled:opacity-40 transition-colors"
+            >
+              <Send size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Project Row ───────────────────────────────────────────────────────────────
 function ProjectRow({ project, isDark, profiles, clients, designers }) {
   const [expanded,  setExpanded]  = useState(false)
   const [editOpen,  setEditOpen]  = useState(false)
-  const intakeForm = useProjectStore((s) => s.intakeForms[project.id])
-  const brief      = useProjectStore((s) => s.projectBriefs[project.id])
+  const intakeForm      = useProjectStore((s) => s.intakeForms[project.id])
+  const brief           = useProjectStore((s) => s.projectBriefs[project.id])
+  const clientProfiles  = useProjectStore((s) => s.clientProfiles)
 
   const clientName    = profiles.find((u) => u.id === project.clientId)?.name || '—'
   const designerNames = (project.designerIds ?? []).map((id) => profiles.find((u) => u.id === id)?.name || 'Unknown').join(', ') || 'Unassigned'
+  const clientProfile = clientProfiles[project.clientId]
+  const businessName  = project.businessId
+    ? (clientProfile?.businesses ?? []).find((b) => b.id === project.businessId)?.name
+    : null
+  const companyProfit = (project.projectValue ?? 0) - (project.designerPayout ?? 0)
 
   return (
     <>
@@ -381,6 +590,43 @@ function ProjectRow({ project, isDark, profiles, clients, designers }) {
 
         {expanded && (
           <div className="border-t border-admin-border px-5 py-4 space-y-4">
+
+            {/* ── Project Details Strip ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="rounded-xl bg-white/5 border border-admin-border p-3 text-center">
+                <DollarSign size={14} className="text-slate-400 mx-auto mb-1" />
+                <p className="text-sm font-bold text-slate-100">{formatCurrency(project.projectValue)}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Project Value</p>
+              </div>
+              <div className="rounded-xl bg-white/5 border border-admin-border p-3 text-center">
+                <Users size={14} className="text-slate-400 mx-auto mb-1" />
+                <p className="text-sm font-bold text-slate-100">{formatCurrency(project.designerPayout)}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Designer Payout</p>
+              </div>
+              <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
+                <TrendingUp size={14} className="text-emerald-400 mx-auto mb-1" />
+                <p className="text-sm font-bold text-emerald-300">{formatCurrency(companyProfit)}</p>
+                <p className="text-[10px] text-emerald-500 mt-0.5">Company Profit</p>
+              </div>
+              <div className="rounded-xl bg-white/5 border border-admin-border p-3 text-center">
+                <Calendar size={14} className="text-blue-400 mx-auto mb-1" />
+                <p className="text-sm font-semibold text-slate-100">{formatDate(project.startDate) || '—'}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Start Date</p>
+              </div>
+              <div className="rounded-xl bg-white/5 border border-admin-border p-3 text-center">
+                <Calendar size={14} className="text-amber-400 mx-auto mb-1" />
+                <p className="text-sm font-semibold text-slate-100">{formatDate(project.dueDate) || '—'}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Due Date</p>
+              </div>
+            </div>
+
+            {/* Client & Business */}
+            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+              <span className="flex items-center gap-1"><User size={11} /> {clientName}</span>
+              {businessName && <span className="flex items-center gap-1"><Building2 size={11} /> {businessName}</span>}
+              <span className="flex items-center gap-1"><Users size={11} /> Designer: {designerNames}</span>
+            </div>
+
             {/* Brief */}
             {project.brief && (
               <div>
@@ -432,6 +678,12 @@ function ProjectRow({ project, isDark, profiles, clients, designers }) {
                 )}
               </div>
             )}
+
+            {/* ── Notes Panels ── */}
+            <div className="space-y-3">
+              <AdminInternalNotes projectId={project.id} />
+              <AdminClientNotes projectId={project.id} />
+            </div>
 
             {/* Drafts count */}
             <p className="text-xs text-slate-600">
