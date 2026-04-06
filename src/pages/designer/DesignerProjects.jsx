@@ -680,7 +680,7 @@ function ProjectCard({ project, profiles = [] }) {
 
   return (
     <>
-      <Card className="overflow-hidden">
+      <Card>
         {/* Header row */}
         <button
           className="w-full text-left"
