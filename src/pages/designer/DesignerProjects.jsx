@@ -164,7 +164,7 @@ function ClientProfileModal({ clientId, project, onClose, profiles = [] }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] mx-2 sm:mx-0 flex flex-col overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full overflow-hidden bg-brand-500/10 flex items-center justify-center text-base font-bold text-brand-500 shrink-0">
               {avatar
@@ -186,13 +186,13 @@ function ClientProfileModal({ clientId, project, onClose, profiles = [] }) {
         </div>
 
         {/* Section tabs */}
-        <div className="flex gap-0.5 px-4 pt-3 border-b border-slate-100">
+        <div className="flex gap-0.5 px-3 sm:px-4 pt-3 border-b border-slate-100 overflow-x-auto">
           {SECTIONS.map((s) => (
             <button
               key={s.id}
               onClick={() => setActiveSection(s.id)}
               className={cn(
-                'px-3 py-2 text-xs font-medium rounded-t-lg transition-colors',
+                'px-2 sm:px-3 py-2 text-[11px] sm:text-xs font-medium rounded-t-lg transition-colors whitespace-nowrap shrink-0',
                 activeSection === s.id
                   ? 'bg-brand-500 text-white'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
@@ -204,7 +204,7 @@ function ClientProfileModal({ clientId, project, onClose, profiles = [] }) {
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
 
           {/* ── Profile section ── */}
           {activeSection === 'profile' && (
@@ -686,18 +686,17 @@ function ProjectCard({ project, profiles = [] }) {
           className="w-full text-left"
           onClick={() => setExpanded((o) => !o)}
         >
-          <CardHeader className="flex flex-row items-center justify-between hover:bg-slate-50/60 transition-colors">
+          <CardHeader className="!px-3 sm:!px-6 !py-3 sm:!py-4 flex flex-row items-center justify-between hover:bg-slate-50/60 transition-colors">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <CardTitle className="truncate">{project.name}</CardTitle>
+                <CardTitle className="truncate text-sm sm:text-base">{project.name}</CardTitle>
                 {totalNotes > 0 && (
                   <span className="flex items-center gap-1 text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
-                    <MessageSquare size={9} /> {totalNotes} note{totalNotes > 1 ? 's' : ''}
+                    <MessageSquare size={9} /> {totalNotes}
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                {/* Clickable client name */}
+              <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 flex-wrap">
                 <button
                   onClick={(e) => { e.stopPropagation(); setClientModalOpen(true) }}
                   className="flex items-center gap-1 text-xs text-brand-500 hover:underline font-medium"
@@ -714,7 +713,7 @@ function ProjectCard({ project, profiles = [] }) {
                 <span className="text-xs text-slate-400">Due {formatDate(project.dueDate)}</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0 ml-3">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-2 sm:ml-3">
               <StatusBadge status={project.status} />
               {expanded ? <ChevronUp size={15} className="text-slate-400" /> : <ChevronDown size={15} className="text-slate-400" />}
             </div>
@@ -722,7 +721,7 @@ function ProjectCard({ project, profiles = [] }) {
         </button>
 
         {expanded && (
-          <CardBody className="space-y-4 pt-2">
+          <CardBody className="!px-3 sm:!px-6 space-y-4 pt-2">
 
             {/* ── Project Details ── */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
